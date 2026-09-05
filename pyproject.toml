@@ -13,7 +13,7 @@ dependencies = ["pydantic>=2.12,<3", "packaging>=24"]
 celld-py = "celld_python.cli:main"
 
 [tool.setuptools.package-data]
-celld_python = ["runtime/*.js"]
+celld_python = ["runtime/*.js", "runtime/*.mjs"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

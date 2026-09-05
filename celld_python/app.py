@@ -4,12 +4,13 @@ import base64
 import inspect
 import json
 import re
+import uuid
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Callable, Generic, TypeVar, get_args, get_origin, get_type_hints
 from urllib.parse import parse_qs, unquote
 
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, create_model
 
 T = TypeVar("T", bound=BaseModel)
 _JSON = TypeAdapter(Any)
@@ -39,12 +40,33 @@ class Error(Exception):
         super().__init__(message)
 
 
+class ClientInfo(BaseModel):
+    """Caller-declared information, never an authenticated identity."""
+    name: str = Field(default="python", max_length=128)
+    version: str = Field(default="", max_length=128)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+@dataclass
+class Context(Generic[T]):
+    """Per-call data plus trusted host attributes supplied by a platform adapter."""
+    data: T
+    scope: str
+    function: str
+    call_id: str
+    request_id: str
+    attempt: int = 1
+    client: ClientInfo = field(default_factory=ClientInfo)
+    host: dict[str, Any] = field(default_factory=dict)
+    local: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class Invocation:
     function: str
     arguments: dict[str, Any]
     metadata: dict[str, Any] = field(default_factory=dict)
-    context: dict[str, Any] = field(default_factory=dict)
+    context: Context | None = None
 
 
 @dataclass
@@ -89,7 +111,7 @@ def _annotation(annotation):
     return annotation, ()
 
 
-def _state_models(provider, seen=None):
+def _state_models(provider, seen=None, kind=State):
     seen = set() if seen is None else seen
     if provider in seen:
         raise ValueError("Dependency cycle")
@@ -104,13 +126,29 @@ def _state_models(provider, seen=None):
         if len(deps) > 1:
             raise ValueError(f"Multiple dependencies on {name}")
         if deps:
-            models.update(_state_models(deps[0].provider, seen))
-        elif get_origin(annotation) is State:
+            models.update(_state_models(deps[0].provider, seen, kind))
+        elif get_origin(annotation) is kind:
             model = get_args(annotation)[0]
             if not inspect.isclass(model) or not issubclass(model, BaseModel):
-                raise TypeError("State requires a Pydantic model")
+                raise TypeError(f"{kind.__name__} requires a Pydantic model")
             models.add(model)
     return models
+
+
+def _inputs(provider):
+    fields = {}
+    hints = get_type_hints(provider, include_extras=True)
+    for name, param in inspect.signature(provider).parameters.items():
+        annotation, extras = _annotation(hints.get(name, Any))
+        dep = next((x for x in extras if isinstance(x, Depends)), None)
+        if isinstance(param.default, Depends):
+            dep = param.default
+        if dep:
+            fields.update(_inputs(dep.provider))
+        elif annotation not in (Request, Invocation, Context) and get_origin(annotation) not in (State, Context):
+            schema = Annotated[annotation, *extras] if extras else annotation
+            fields[name] = (schema, ... if param.default is inspect.Parameter.empty else param.default)
+    return fields
 
 
 @dataclass
@@ -124,6 +162,7 @@ class Route:
     state_key: str | None
     namespace: str | None
     operation: str | None = None
+    context_model: type[BaseModel] | None = None
 
 
 class Worker:
@@ -149,6 +188,10 @@ class Worker:
             if len(models) > 1:
                 raise ValueError("A route can use one state model")
             model = next(iter(models), None)
+            contexts = _state_models(handler, kind=Context)
+            if len(contexts) > 1:
+                raise ValueError("A function must use one context model")
+            context_model = next(iter(contexts), None)
             if bool(model) != bool(state_key):
                 raise ValueError("State[T] and state_key must be declared together")
             if state_key and not _operation and state_key not in names:
@@ -166,7 +209,7 @@ class Worker:
                 if ns and r.namespace == ns and r.state_model is not model:
                     raise ValueError("Routes in one namespace must use the same state model")
             self.routes.append(Route(method.upper(), path, handler, re.compile(pattern), names,
-                                     model, state_key, ns, _operation))
+                                     model, state_key, ns, _operation, context_model))
             return handler
         return register
 
@@ -192,9 +235,27 @@ class Worker:
 
     def function(self, handler=None, *, key=None, namespace=None):
         def register(function):
+            if function.__name__.startswith("_"):
+                raise ValueError("Exported function names cannot start with _")
             return self.route("POST", "/" + function.__name__, state_key=key,
                               namespace=namespace, _operation=function.__name__)(function)
         return register(handler) if handler is not None else register
+
+    def schema(self) -> str:
+        functions = {}
+        for route in self.routes:
+            if not route.operation:
+                continue
+            arguments = create_model(route.operation + "Arguments", __config__=ConfigDict(extra="forbid"),
+                                     **_inputs(route.handler))
+            functions[route.operation] = dict(
+                description=inspect.getdoc(route.handler) or "",
+                arguments=arguments.model_json_schema(),
+                returns=TypeAdapter(get_type_hints(route.handler).get("return", Any)).json_schema(),
+                context=route.context_model.model_json_schema() if route.context_model else None,
+                stateful=route.state_model is not None,
+            )
+        return json.dumps(dict(version=1, functions=functions))
 
     def describe(self) -> str:
         return json.dumps([dict(method=r.method, path=r.path, pattern=r.regex.pattern,
@@ -227,10 +288,26 @@ class Worker:
                 arguments = request.json() if request.body else {}
                 if not isinstance(arguments, dict):
                     raise HTTPError(422, "Arguments must be an object")
-                metadata = json.loads(request.headers.get("x-celld-metadata", "{}"))
+                encoded = request.headers.get("x-celld-context", request.headers.get("x-celld-metadata", "{}"))
+                if len(encoded) > 16384:
+                    raise HTTPError(422, "Context exceeds 16 KiB")
+                metadata = json.loads(encoded)
                 if not isinstance(metadata, dict):
                     raise HTTPError(422, "Metadata must be an object")
-                invocation = Invocation(matched.operation, arguments, metadata)
+                data = matched.context_model.model_validate(metadata) if matched.context_model else metadata
+                call_id = request.headers.get("x-celld-call-id", str(uuid.uuid4()))
+                ctx = Context(data, request.headers.get("x-celld-scope", "default"), matched.operation,
+                              call_id, request.headers.get("x-celld-request-id", call_id),
+                              int(request.headers.get("x-celld-attempt", "1")),
+                              ClientInfo.model_validate_json(request.headers.get("x-celld-client", "{}")),
+                              json.loads(request.headers.get("x-celld-host", "{}")))
+                if not 1 <= ctx.attempt <= 100:
+                    raise ValueError("Attempt must be between 1 and 100")
+                invocation = Invocation(matched.operation, arguments, metadata, ctx)
+                fields = _inputs(matched.handler)
+                unknown = arguments.keys() - fields.keys()
+                if unknown:
+                    raise HTTPError(422, f"Unknown arguments: {', '.join(sorted(unknown))}")
             except (HTTPError, ValueError) as error:
                 return Response.json({"error": {"code": "validation_error", "message": str(error)}}, 422), None
         async with AsyncExitStack() as stack:
@@ -252,6 +329,8 @@ class Worker:
                         value = request
                     elif annotation is Invocation:
                         value = invocation
+                    elif annotation is Context or get_origin(annotation) is Context:
+                        value = invocation.context
                     elif get_origin(annotation) is State:
                         value = state
                     else:

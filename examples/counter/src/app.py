@@ -1,38 +1,40 @@
 from typing import Annotated
 
-from celld_python import App, Depends, Error, Invocation, State
+from celld_python import App, Context, Depends, Invocation, State
 from pydantic import BaseModel, Field
 
 app = App
 
+
 class Counter(BaseModel):
     total: int = 0
+    last_actor: str = ""
+
+
+class Caller(BaseModel):
+    actor: str
 
 
 @app.middleware
-async def trace(invocation, call_next):
-    invocation.context["traced"] = True
+async def trace(invocation: Invocation, call_next):
+    invocation.context.local["traced"] = True
     return await call_next(invocation)
 
 
-def current_user(invocation: Invocation) -> str:
-    # Caller metadata is untrusted; replace this demonstration with real auth.
-    user = invocation.metadata.get("user")
-    if not user:
-        raise Error("Provide user metadata", code="unauthorized")
-    return user
+def actor(ctx: Context[Caller]) -> str:
+    # Context is caller data. Authentication belongs in your host adapter.
+    return ctx.data.actor
 
 
-@app.function(key="user_id", namespace="counters")
-async def increment(user_id: str, counter: State[Counter],
-                    user: Annotated[str, Depends(current_user)],
+@app.function(key="counter_id", namespace="counters")
+async def increment(counter_id: str, counter: State[Counter],
+                    caller: Annotated[str, Depends(actor)],
                     amount: Annotated[int, Field(ge=1, le=100)] = 1) -> Counter:
-    if user != user_id:
-        raise Error("This counter belongs to another user", code="forbidden")
     counter.value.total += amount
+    counter.value.last_actor = caller
     return counter.value
 
 
-@app.function(key="user_id", namespace="counters")
-def read(user_id: str, counter: State[Counter]) -> Counter:
+@app.function(key="counter_id", namespace="counters")
+def read(counter_id: str, counter: State[Counter]) -> Counter:
     return counter.value

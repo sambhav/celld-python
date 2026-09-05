@@ -4,24 +4,22 @@ Typed Python HTTP workers on a shared celld fleet, with S3 as the only external
 persistence/coordination service. **Experimental work in progress.**
 
 ```python
-from celld_python import Worker
-from pydantic import BaseModel
+from celld_python import App
 
-app = Worker()
+app = App
 
-class Greeting(BaseModel):
-    name: str
-
-@app.post("/greet")
-def greet(body: Greeting):
-    return {"message": f"Hello, {body.name}!"}
+@app.function
+def hello(name: str = "world") -> str:
+    return f"Hello, {name}"
 ```
 
-The Python API includes typed request validation, route decorators, middleware,
-request-scoped dependency injection and `State[Model]` for keyed state. The
-bundler targets Pyodide 314.0.6 (Python 3.14), packages declared dependencies
-ahead of deployment, and produces a celld Wrangler project. Native Linux/macOS
-wheels are rejected; use the pinned Pyodide catalog or matching Emscripten wheels.
+The OSS package provides worker functions, Pydantic validation, middleware,
+dependency injection, caller context, and `State[Model]` for keyed state.
+Authentication and tenancy are platform concerns: an optional host adapter
+supplies trusted context and a stable scope, with no built-in account registry.
+The bundler targets Pyodide 314.0.6 (Python 3.14), bundles declared packages
+before deployment, and produces a celld Wrangler project. Use the pinned
+Pyodide catalog or matching Emscripten/pure Python wheels.
 
 ## Current verification
 
@@ -50,12 +48,12 @@ celld-py deploy examples/hello -- --bucket s3://my-celld-bucket
 
 `lock` downloads runtime/package artifacts and writes `celld.lock.json`.
 `build` checks their SHA-256 hashes and runs offline. Source lives under each
-app's declared `source` directory; the builder does not import application code.
+app's declared `source` directory; the builder checks app imports and extracts schemas inside the pinned WASM runtime.
 Runtime package fetches resolve only against the bundle, with no CDN fallback.
 
 celld currently runs one deployment per fleet. Multiple apps are composed into
-one fleet bundle. This is a pool for trusted applications, not an adversarial
-multi-tenant sandbox or independently deployed apps with a scheduler.
+one fleet bundle. The OSS runtime supplies
+worker and state primitives; deployment/auth policy belongs to its embedding platform.
 
 Sources: [celld](https://github.com/denoland/celld),
 [celld compatibility](https://github.com/denoland/celld/blob/v0.4.0/docs/cloudflare-compat.md),

@@ -52,6 +52,15 @@ def environment():
     return env
 
 
+def stop(process):
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
 def publish_local(project, log_path):
     binary = shutil.which("celld")
     assert binary, "celld must be on PATH"
@@ -69,8 +78,7 @@ def publish_local(project, log_path):
                 time.sleep(.1)
             pytest.fail(log_path.read_text())
         finally:
-            process.terminate()
-            process.wait(timeout=20)
+            stop(process)
 
 
 @contextmanager
@@ -96,8 +104,7 @@ def node(project, log_path):
                 pytest.fail(log_path.read_text())
             yield port
         finally:
-            process.terminate()
-            process.wait(timeout=20)
+            stop(process)
 
 
 def test_hello_on_actual_celld(tmp_path):
@@ -118,24 +125,29 @@ def test_hello_on_actual_celld(tmp_path):
 def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
     project = build(ROOT / "examples" / "fleet.toml", tmp_path / "project")
     publish_local(project, tmp_path / "publish.log")
+    context = {"x-celld-context": '{"actor":"Sam"}'}
+    call = {**context, "x-celld-call-id": "persisted-call-000001"}
     with node(project, tmp_path / "node.log") as port:
-        assert json.loads(request(port, "/hello/hello", method="POST")[1]) == {"message": "Hello world"}
+        assert json.loads(request(port, "/hello/hello", {})[1]) == {"result": "Hello, world"}
         status, body, _ = request(port, "/math/mean", {"values": [1, 2, 6]})
         assert status == 200, (body, (tmp_path / "node.log").read_text())
-        assert json.loads(body) == {"mean": 3.0}
-        status, body, headers = request(port, "/counters/alice", {"amount": 2}, headers={"x-user": "alice"})
+        assert json.loads(body) == {"result": 3.0}
+        status, body, _ = request(port, "/counters/increment", {"counter_id": "a", "amount": 2}, headers=call)
         assert status == 200, (body, (tmp_path / "node.log").read_text())
-        assert json.loads(body) == {"total": 2}
-        assert headers["x-worker"] == "counter"
-        assert request(port, "/counters/alice", {"amount": 8})[0] == 401
-        assert request(port, "/counters/alice", {"amount": 8}, headers={"x-user": "bob"})[0] == 403
-        assert request(port, "/counters/alice", {"amount": -1}, headers={"x-user": "alice"})[0] == 422
+        assert json.loads(body)["result"] == {"total": 2, "last_actor": "Sam"}
+        replay = request(port, "/counters/increment", {"counter_id": "a", "amount": 2}, headers=call)
+        assert replay[2]["x-celld-replayed"] == "true"
+        assert replay[1] == body
+        assert request(port, "/counters/increment", {"counter_id": "a", "amount": 8}, headers=call)[0] == 409
+        assert request(port, "/counters/increment", {"counter_id": "a"})[0] == 422
+        assert request(port, "/counters/increment", {"counter_id": "a", "amount": -1}, headers=context)[0] == 422
         with ThreadPoolExecutor(max_workers=4) as executor:
-            results = list(executor.map(lambda _: request(port, "/counters/alice", {"amount": 1}, headers={"x-user": "alice"}), range(8)))
+            results = list(executor.map(lambda _: request(port, "/counters/increment", {"counter_id": "a"}, headers=context), range(8)))
         assert all(status == 200 for status, _, _ in results), results
-        assert sorted(json.loads(body)["total"] for _, body, _ in results) == list(range(3, 11))
-        assert json.loads(request(port, "/counters/bob")[1]) == {"total": 0}
-    # Same durable key and database survive full process teardown and activation.
+        assert sorted(json.loads(body)["result"]["total"] for _, body, _ in results) == list(range(3, 11))
+        assert json.loads(request(port, "/counters/read", {"counter_id": "b"})[1])["result"]["total"] == 0
     with node(project, tmp_path / "restart.log") as port:
-        assert json.loads(request(port, "/counters/alice")[1]) == {"total": 10}
-        assert json.loads(request(port, "/counters/bob")[1]) == {"total": 0}
+        assert json.loads(request(port, "/counters/read", {"counter_id": "a"})[1])["result"]["total"] == 10
+        replay = request(port, "/counters/increment", {"counter_id": "a", "amount": 2}, headers=call)
+        assert replay[2]["x-celld-replayed"] == "true"
+        assert json.loads(replay[1])["result"]["total"] == 2

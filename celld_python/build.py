@@ -1,4 +1,4 @@
-"""Lock and bundle a fleet. No application code is executed by the builder."""
+"""Lock and bundle a fleet. App imports and schemas are checked in the pinned WASM runtime."""
 from __future__ import annotations
 
 import base64
@@ -226,7 +226,7 @@ def port_runtime(runtime: Path, output: Path):
     shutil.copyfile(runtime / "pyodide.asm.wasm", output / "pyodide.asm.wasm")
 
 
-def build(target: Path, output: Path | None = None):
+def build(target: Path, output: Path | None = None, *, host: Path | None = None):
     root, name, apps = configurations(target)
     lock_path = root / "celld.lock.json"
     if not lock_path.is_file():
@@ -242,6 +242,7 @@ def build(target: Path, output: Path | None = None):
     output = (output or root / ".celld-python" / "build").resolve()
     output.mkdir(parents=True, exist_ok=True)
     package = Path(__file__).parent
+    sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     port_runtime(runtime, output)
     for file in ("host.js", "assets.js", "wasm.js"):
         shutil.copyfile(package / "runtime" / file, output / file)
@@ -265,12 +266,39 @@ def build(target: Path, output: Path | None = None):
             if relative.startswith("celld_python/"):
                 raise ValueError("App sources cannot shadow celld_python")
             sources[relative] = path.read_text()
+        inspection = cache / "inspect" / app["name"]
+        package_dir = inspection / "packages"
+        package_dir.mkdir(parents=True, exist_ok=True)
+        for pkg in spec["packages"].values():
+            shutil.copyfile(cache / "packages" / pkg["sha256"] / pkg["file_name"], package_dir / pkg["file_name"])
+        input_spec = dict(runtime=str(runtime),packages=str(package_dir),lock=spec,sdk=sdk,
+                          sources=sources,entrypoint=app["entrypoint"])
+        inspection_key = digest(json.dumps(input_spec, sort_keys=True).encode())
+        schema_path = inspection / (inspection_key + ".json")
+        if not schema_path.exists():
+            (inspection / "input.json").write_text(json.dumps(input_spec))
+            result = subprocess.run(["node", str(package / "runtime" / "inspect.mjs"),
+                                     str(inspection / "input.json"), str(schema_path)], capture_output=True, text=True, timeout=120)
+            if result.returncode:
+                raise ValueError(f"WASM import/schema check failed for {app['name']}:\n{result.stderr[-5000:]}")
+        inspected = json.loads(schema_path.read_text())
         manifest.append(dict(name=app["name"], mount=app["mount"], entrypoint=app["entrypoint"],
-                             lock=spec, packages=list(spec["packages"]), sources=sources))
-    sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
+                             lock=spec, packages=list(spec["packages"]), sources=sources, **inspected))
+        (output / (app["name"] + ".schema.json")).write_text(json.dumps(inspected["schema"], indent=2) + "\n")
     (output / "manifest.js").write_text("export const apps=" + json.dumps(manifest) + ";\nexport const sdk=" + json.dumps(sdk) + ";\n")
     (output / "asset-data.js").write_text("export const assets=" + json.dumps(assets) + ";\n")
-    (output / "wrangler.json").write_text(json.dumps(dict(name=name, main="host.js", compatibility_date="2026-09-05",
+    main = "host.js"
+    if host is not None:
+        if not host.is_file():
+            raise ValueError(f"Missing host adapter: {host}")
+        shutil.copyfile(host, output / "platform.mjs")
+        (output / "entry.js").write_text(
+            "export {PythonCell} from './host.js';\n"
+            "import {createHandler} from './host.js';\n"
+            "import {resolveContext} from './platform.mjs';\n"
+            "export default createHandler({resolveContext});\n")
+        main = "entry.js"
+    (output / "wrangler.json").write_text(json.dumps(dict(name=name, main=main, compatibility_date="2026-09-05",
         durable_objects=dict(bindings=[dict(name="PYTHON_CELLS", class_name="PythonCell")]),
         migrations=[dict(tag="v1", new_sqlite_classes=["PythonCell"])]), indent=2) + "\n")
     return output
