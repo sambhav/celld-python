@@ -20,6 +20,8 @@ celld-py lock examples/hello
 celld-py lock examples/fleet.toml
 CELLD_E2E=1 pytest experiments/rust-pyodide/test_runtime.py -q
 python experiments/rust-pyodide/compare.py --rounds 4 --calls 100
+python experiments/rust-pyodide/lifecycle.py --rounds 3
+python experiments/rust-pyodide/scaling.py --seconds 3 --rounds 3
 ```
 
 Both backends run sequentially on the same GitHub runner, alternating order.
@@ -38,3 +40,18 @@ The local store substitutes for S3; these numbers do not establish production
 S3 latency or cross-node scaling throughput. Celld's idle eviction can release
 worker cells while a host remains running; fleet machines are provisioned by
 the embedding platform.
+
+Lifecycle measurements prove inactivity through the operator census, then verify
+the next counter increment continues from durable state. They record RSS before
+and after eviction; zero resident cells does not imply zero process memory.
+Source updates use the SDK's real rebuild/publish/restart supervisor and validate
+the new result and preserved state. These are local developer reload timings,
+not an in-place production rollout measurement.
+
+The scaling sweep warms workers before timing, alternates concurrency order,
+and measures 1/2/4/8 clients with independent keys and one shared-key control.
+It includes small state mutations, CPU work and a 50 ms async wait. All responses
+must be successful, with no replay or lost/duplicated state increments. Samples
+include throughput, latency, celld process CPU and RSS. Cells are evicted between
+scenarios so earlier workers do not accumulate and change placement. This runs
+on one fixed CPU allocation: it tests worker concurrency, not adding machines.

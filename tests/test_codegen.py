@@ -89,11 +89,12 @@ def test_unsupported_structures_fail_clearly(tmp_path):
 def test_generated_names_cannot_overwrite_transport_or_another_function(tmp_path):
     spec = {"arguments": {"type": "object", "properties": {}, "additionalProperties": False},
             "returns": {"type": "string"}, "context": None}
-    module = load(generate({"version": 1, "functions": {"call": spec, "call_": spec}}, tmp_path / "names.py"))
-    client = module.Client("http://localhost")
+    module = load(generate({"version": 1, "functions": {"call": spec, "call_": spec, "describe": spec}}, tmp_path / "names.py"))
+    client = module.Client()
     client.call = lambda function, **arguments: function
     assert client.call_() == "call"
     assert client.call__() == "call_"
+    assert client.describe_() == "describe"
 
 
 class AliasedPerson(BaseModel):

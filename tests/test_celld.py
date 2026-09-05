@@ -129,6 +129,14 @@ def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
     call = {**context, "x-celld-call-id": "persisted-call-000001"}
     with node(project, tmp_path / "node.log") as port:
         assert json.loads(request(port, "/hello/hello", {})[1]) == {"result": "Hello, world"}
+        import sys
+        endpoint = f"http://127.0.0.1:{port}/hello"
+        result = subprocess.run([sys.executable, "-m", "celld_python.cli", "call", "hello", "name=Sam", "--endpoint", endpoint],
+                                capture_output=True, text=True, timeout=60, check=True)
+        assert json.loads(result.stdout) == "Hello, Sam"
+        result = subprocess.run([sys.executable, "-m", "celld_python.cli", "functions", "--endpoint", endpoint],
+                                capture_output=True, text=True, timeout=60, check=True)
+        assert "hello(name: str = 'world') -> str" in result.stdout
         status, body, _ = request(port, "/math/mean", {"values": [1, 2, 6]})
         assert status == 200, (body, (tmp_path / "node.log").read_text())
         assert json.loads(body) == {"result": 3.0}
@@ -172,6 +180,7 @@ def test_generated_clients_and_host_context_hook(tmp_path):
         endpoint = f"http://127.0.0.1:{port}/counters"
         one = generated.Client(endpoint, token="one", context=generated.Caller(actor="Sam"), client_info=ClientInfo(name="test"))
         two = generated.Client(endpoint, token="two", context=generated.Caller(actor="Sam"))
+        assert "increment" in one.describe()["functions"]
         assert one.increment(counter_id="same", amount=2).total == 2
         assert two.read(counter_id="same").total == 0
         other = one.with_context(generated.Caller(actor="other"))

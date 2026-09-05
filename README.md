@@ -18,7 +18,7 @@ Builds generate a Python client with real signatures:
 ```python
 from hello_client import Client
 
-client = Client("http://localhost:9876")
+client = Client()  # local dev; pass an endpoint for a deployment
 print(client.hello(name="Sam"))  # Hello, Sam
 ```
 
@@ -38,9 +38,29 @@ npm install -g esbuild@0.25.12
 # Install celld 0.4.0 using its upstream release instructions.
 
 celld-py init hello
-celld-py lock hello
 celld-py dev hello
 ```
+
+On the first run, `dev` prepares the pinned runtime and declared packages and
+writes `celld.lock.json`. Commit that file. Later dependency changes require
+`celld-py lock hello`; an existing lock is never silently updated.
+
+In another terminal, discover and call functions directly:
+
+```sh
+celld-py functions
+celld-py call hello name=Sam
+```
+
+Arguments are `name=value`: JSON numbers, lists, objects, booleans and null keep
+their types; other values are strings. For example, `values='[1,2,6]'` passes a
+list, while `name='"123"'` keeps a numeric-looking name as a string. The CLI prints
+the function's result. Use `--context '{"actor":"Sam"}'` for caller context.
+
+Clients and CLI commands default to local dev on port 9876. Set `CELLD_ENDPOINT`
+or pass an explicit endpoint to select a deployed app. `client.describe()`
+returns its contract, and `celld-py functions --json` prints it. The async client
+also supports `await client.describe()`.
 
 Edit `hello/src/app.py`; the worker rebuilds and restarts. Invalid edits keep the
 last working deployment serving. Local state survives restarts. `dev` binds only
@@ -50,6 +70,20 @@ The client is generated at `hello/.celld-python/build/hello_client.py`. Copy it
 into your caller project, or add that directory to `PYTHONPATH`. Install
 `celld-python` in the caller environment too. `App()` also works when you want
 an explicit app instance; `app = App` registers functions in their defining module.
+
+For a tiny app, the app declaration is optional:
+
+```python
+from celld_python import function
+
+@function
+def hello(name: str = "world") -> str:
+    return f"Hello, {name}"
+```
+
+Decorated functions remain ordinary Python functions. Use a generated client to
+call a deployment; calling `hello()` directly runs it locally without injection,
+middleware or persistent state.
 
 ## Typed calls and context
 
@@ -256,6 +290,15 @@ clients and Wrangler configuration. The examples mount hello at `/hello`,
 counters at `/counters`, and NumPy at `/math`; supply the app's mounted endpoint
 to its generated client.
 
+To exercise idle scale-down locally, use `celld-py dev hello --idle-timeout 60`.
+In a fleet, configure `CELLD_IDLE_EVICT_S=60` on your celld nodes. Age-based eviction
+is disabled by default in celld 0.4.0. Eviction releases idle worker cells; the
+next call reconstructs their interpreter and restores state. It does not stop
+host machines. Add nodes against the same bucket to add fleet capacity. Calls
+for the same state key remain serialized; independent keys can run concurrently.
+More keys do not guarantee more CPU parallelism: celld can place cells in a shared
+V8 isolate. See the measured [runtime experiments](experiments/rust-pyodide).
+
 To embed your platform policy, pass a self-contained ES module with
 `--host platform.mjs` to `build`, `dev` or `deploy`:
 
@@ -290,11 +333,15 @@ an optional `token` for a platform that uses Bearer authentication.
   Independent app deployment and state migration orchestration belong to the
   embedding platform. Hostile uploaded-code isolation is not an audited feature.
 
-The heavy execution, scheduling, SQLite and durability paths already run in
-celld's Rust runtime. A small JavaScript adapter connects Pyodide to those APIs.
+Scheduling, SQLite and durability run in celld's Rust runtime. The extension's
+JavaScript host currently owns dispatch, interpreter boot and receipt coordination.
 Its version-checked changes disable inapplicable Node/browser paths and reuse
 celld's process-wide compiled WASM module cache. The optional
 [Rust watcher patch](patches/README.md) addresses an upstream development issue.
+An isolated [Rust WASM host experiment](experiments/rust-pyodide) proves Pyodide
+interop. It is not enabled by default: initial GitHub measurements showed no
+meaningful latency improvement, and it adds a module/toolchain without removing
+Pyodide's required JavaScript glue.
 
 ## Tests and examples
 

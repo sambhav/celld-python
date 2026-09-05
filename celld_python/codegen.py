@@ -159,7 +159,7 @@ def generate(schema: dict, output: Path):
     generator = Generator()
     methods = []
     contexts = []
-    used_methods = {"call", "with_context", "with_call_id", "endpoint", "timeout", "retries"}
+    used_methods = {"call", "describe", "with_context", "with_call_id", "endpoint", "timeout", "retries"}
     for name, spec in schema["functions"].items():
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", name):
             raise ValueError(f"Invalid exported function name: {name}")
@@ -198,7 +198,7 @@ def generate(schema: dict, output: Path):
         class_name = "AsyncClient" if asynchronous else "Client"
         base = "_AsyncClient" if asynchronous else "_Client"
         lines = [f"class {class_name}({base}):",
-                 f"    def __init__(self, endpoint: str, *, context: {context_type} | None = None, token: str | None = None,",
+                 f"    def __init__(self, endpoint: str | None = None, *, context: {context_type} | None = None, token: str | None = None,",
                  "                 client_info: ClientInfo | None = None, timeout: float = 60, retries: RetryPolicy | None = None):",
                  "        super().__init__(endpoint, context=context, token=token, client_info=client_info, timeout=timeout, retries=retries)",
                  "", f"    def with_context(self, context: {context_type}) -> Self:",

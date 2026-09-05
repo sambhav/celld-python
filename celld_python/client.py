@@ -5,6 +5,7 @@ import asyncio
 import copy
 import http.client
 import json
+import os
 import random
 import re
 import time
@@ -47,9 +48,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class Client:
-    def __init__(self, endpoint: str, *, context: BaseModel | dict | None = None,
+    def __init__(self, endpoint: str | None = None, *, context: BaseModel | dict | None = None,
                  token: str | None = None, client_info: ClientInfo | None = None,
                  timeout: float = 60, retries: RetryPolicy | None = None):
+        endpoint = endpoint if endpoint is not None else os.environ.get("CELLD_ENDPOINT", "http://127.0.0.1:9876")
         url = urllib.parse.urlsplit(endpoint)
         if url.scheme not in {"http", "https"} or not url.netloc or url.username or url.password or url.query or url.fragment:
             raise ValueError("Endpoint must be an HTTP(S) URL without credentials, query or fragment")
@@ -91,6 +93,32 @@ class Client:
         result = copy.copy(self)
         result._call_id = call_id
         return result
+
+    def describe(self) -> dict:
+        """Discover the deployed function contract without importing its code."""
+        headers = {"authorization": "Bearer " + self._token} if self._token else {}
+        request = urllib.request.Request(self.endpoint + "/__celld/schema", headers=headers)
+        try:
+            try:
+                response = self._opener.open(request, timeout=self.timeout)
+            except urllib.error.HTTPError as error:
+                response = error
+            with response:
+                raw = response.read(_MAX_RESPONSE + 1)
+                if len(raw) > _MAX_RESPONSE:
+                    raise RemoteError("protocol_error", "Worker contract exceeds 1 MiB")
+                try:
+                    payload = json.loads(raw)
+                except (ValueError, UnicodeDecodeError):
+                    payload = None
+                if isinstance(payload, dict) and isinstance(payload.get("error"), dict):
+                    error = payload["error"]
+                    raise RemoteError(error.get("code", "execution_error"), error.get("message", "Worker failed"), status=response.status)
+                if response.status != 200 or not isinstance(payload, dict) or payload.get("version") != 1 or not isinstance(payload.get("functions"), dict):
+                    raise RemoteError("protocol_error", "Invalid worker contract", status=response.status)
+                return payload
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as error:
+            raise RemoteError("transport_error", str(error)) from error
 
     def call(self, function: str, /, **arguments):
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", function):
@@ -156,6 +184,9 @@ class Client:
 
 
 class AsyncClient(Client):
+    async def describe(self) -> dict:
+        return await asyncio.to_thread(super().describe)
+
     async def call(self, function: str, /, **arguments):
         # Cancellation stops awaiting; it cannot undo an already submitted call.
         return await asyncio.to_thread(super().call, function, **arguments)

@@ -87,9 +87,11 @@ def source_digest(target, host):
     return content.hexdigest()
 
 
-def run(target: Path, *, port=9876, host=None, reload=True):
+def run(target: Path, *, port=9876, host=None, reload=True, idle_timeout=None):
     if not 1 <= port <= 65535:
         raise ValueError("Port must be between 1 and 65535")
+    if idle_timeout is not None and (not isinstance(idle_timeout, int) or idle_timeout < 1):
+        raise ValueError("idle-timeout must be a positive number of seconds")
     binary = shutil.which("celld")
     if not binary:
         raise ValueError("Install celld 0.4.0 and put it on PATH")
@@ -100,6 +102,8 @@ def run(target: Path, *, port=9876, host=None, reload=True):
     node_name = "dev-" + hashlib.sha256(str(project).encode()).hexdigest()[:12]
     env.update(CELLD_INTERNAL_DEV_STORE=str(state / "objects.sqlite3"),
                CELLD_WATCH=str(state / "runtime"), CELLD_NODE=node_name)
+    if idle_timeout is not None:
+        env["CELLD_IDLE_EVICT_S"] = str(idle_timeout)
     running = True
 
     def shutdown(signum, frame):
@@ -122,6 +126,7 @@ def run(target: Path, *, port=9876, host=None, reload=True):
                         raise RuntimeError((project / "node.log").read_text()[-5000:])
                     time.sleep(.1)
                 print(f"ready http://127.0.0.1:{port}  |  clients: {project}/*_client.py", flush=True)
+                print(f"Try: celld-py functions --endpoint http://127.0.0.1:{port}", flush=True)
                 while running and process.poll() is None:
                     time.sleep(.3)
                     if reload:

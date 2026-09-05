@@ -2,7 +2,8 @@ name: runtime benchmarks
 on:
   pull_request:
     paths:
-      - 'experiments/rust-pyodide/**'
+      - 'experiments/rust-pyodide/*.py'
+      - 'experiments/rust-pyodide/runtime/**'
       - '.github/workflows/benchmarks.yml'
   workflow_dispatch:
 permissions:
@@ -66,6 +67,10 @@ jobs:
         run: python experiments/rust-pyodide/lifecycle.py --rounds 3
       - name: Measure worker scaling and shared-key contention
         run: python experiments/rust-pyodide/scaling.py --seconds 3 --rounds 3
+      - name: Publish measured results
+        env:
+          BENCH_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python experiments/rust-pyodide/report.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -73,5 +78,6 @@ jobs:
           path: |
             experiments/rust-pyodide/build/*.json
             experiments/rust-pyodide/build/*.txt
+            experiments/rust-pyodide/build/*.md
             experiments/rust-pyodide/build/*.log
             /tmp/pytest-of-*/**/*.log
