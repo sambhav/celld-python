@@ -8,7 +8,7 @@ def create(directory: Path):
         raise ValueError("Choose a directory name starting with a letter and containing letters, digits or hyphens")
     files = {
         "pyproject.toml": f'[project]\nname = "{name}"\nversion = "0.1.0"\ndependencies = []\n',
-        "src/app.py": '''from celld_python import App
+        "src/app.py": '''from celld import App
 
 app = App
 

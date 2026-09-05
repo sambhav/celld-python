@@ -6,8 +6,8 @@ from typing import Annotated, Literal
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from celld_python import Context, Depends, State, Worker
-from celld_python.codegen import generate
+from celld import Context, Depends, State, Worker
+from celld.codegen import generate
 
 
 class Caller(BaseModel):
@@ -102,7 +102,7 @@ class AliasedPerson(BaseModel):
 
 
 async def test_generated_result_uses_the_serialized_model_contract(tmp_path):
-    from celld_python import Request
+    from celld import Request
     app = Worker()
 
     @app.function

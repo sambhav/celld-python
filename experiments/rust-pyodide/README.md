@@ -14,10 +14,15 @@ the resulting decision will be recorded here after the GitHub benchmark runs.
 Use the normal checkout prerequisites plus Rust 1.98.1,
 `rustup target add wasm32-unknown-unknown`, and wasm-bindgen CLI 0.2.128.
 The workflow pins and verifies the official CLI archives.
+Run it manually from GitHub Actions, or add the `benchmark` label to a PR.
+Remove and re-add the label to measure a later revision. Benchmarking is explicit
+so documentation commits do not repeat the long performance sweep; ordinary
+correctness tests still run on every PR update. The separate idle-memory workflow
+uses the `benchmark-memory` label.
 
 ```sh
-celld-py lock examples/hello
-celld-py lock examples/fleet.toml
+pycelld lock examples/hello
+pycelld lock examples/fleet.toml
 CELLD_E2E=1 pytest experiments/rust-pyodide/test_runtime.py -q
 python experiments/rust-pyodide/compare.py --rounds 4 --calls 100
 python experiments/rust-pyodide/lifecycle.py --rounds 3

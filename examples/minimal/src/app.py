@@ -1,4 +1,4 @@
-from celld_python import App
+from celld import App
 
 app = App
 

@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 
 from bridge import HERE, build_rust, compile_runtime
-from celld_python.build import build
+from celld.build import build
 from harness import measured_node
 
 ROOT = HERE.parents[1]

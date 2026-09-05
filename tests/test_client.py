@@ -5,7 +5,7 @@ import urllib.error
 
 import pytest
 
-from celld_python import AsyncClient, Client, ClientInfo, RemoteError, RetryPolicy
+from celld import AsyncClient, Client, ClientInfo, RemoteError, RetryPolicy
 
 
 class Reply(io.BytesIO):

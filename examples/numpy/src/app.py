@@ -1,5 +1,5 @@
 import numpy as np
-from celld_python import App, Error
+from celld import App, Error
 
 app = App
 

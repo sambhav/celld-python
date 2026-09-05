@@ -18,11 +18,11 @@ from concurrent.futures import ThreadPoolExecutor
 from bridge import HERE
 from compare import ROOT, summarize, timed
 from harness import measured_node, wait_inactive
-from celld_python.build import build, lock
+from celld.build import build, lock
 from test_celld import publish_local
 
 SOURCE = '''import asyncio
-from celld_python import App, State
+from celld import App, State
 from pydantic import BaseModel
 app = App
 class Counter(BaseModel):

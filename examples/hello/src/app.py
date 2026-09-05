@@ -1,4 +1,4 @@
-from celld_python import Worker
+from celld import Worker
 from pydantic import BaseModel, Field
 
 app = Worker()

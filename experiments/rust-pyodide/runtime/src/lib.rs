@@ -106,7 +106,7 @@ impl PythonRuntime {
             fs.write_file(&path, &source)?;
         }
         py.run_python("import sys; sys.path.insert(0, '/app')")?;
-        let module = OwnedProxy::new(py.pyimport("celld_python")?);
+        let module = OwnedProxy::new(py.pyimport("celld")?);
         let worker = OwnedProxy::new(module.value().load_worker(&bundle.entrypoint)?);
         Ok(Self { _py: py, worker })
     }

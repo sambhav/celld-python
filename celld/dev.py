@@ -126,7 +126,7 @@ def run(target: Path, *, port=9876, host=None, reload=True, idle_timeout=None):
                         raise RuntimeError((project / "node.log").read_text()[-5000:])
                     time.sleep(.1)
                 print(f"ready http://127.0.0.1:{port}  |  clients: {project}/*_client.py", flush=True)
-                print(f"Try: celld-py functions --endpoint http://127.0.0.1:{port}", flush=True)
+                print(f"Try: pycelld functions --endpoint http://127.0.0.1:{port}", flush=True)
                 while running and process.poll() is None:
                     time.sleep(.3)
                     if reload:

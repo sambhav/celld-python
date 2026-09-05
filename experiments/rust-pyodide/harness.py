@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 from contextlib import contextmanager
 
-from celld_python.dev import environment, free_port, stop
+from celld.dev import environment, free_port, stop
 
 
 class RunningNode:

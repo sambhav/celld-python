@@ -1,14 +1,13 @@
 name: idle memory diagnostic
 on:
   pull_request:
-    paths:
-      - 'experiments/memory/**'
-      - '.github/workflows/memory.yml'
+    types: [labeled]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   memory:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark-memory'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -34,7 +33,7 @@ jobs:
           path: examples/.celld-python/cache
           key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
       - run: |
-          celld-py lock examples/fleet.toml
+          pycelld lock examples/fleet.toml
           git diff --exit-code -- examples/celld.lock.json
       - name: Measure memory after eviction settles
         env:

@@ -4,6 +4,6 @@ version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = ["pydantic>=2.12,<3"]
 
-[tool.celld-python]
+[tool.celld]
 entrypoint = "app:app"
 source = "src"

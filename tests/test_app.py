@@ -7,7 +7,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from celld_python import Depends, HTTPError, Request, Response, State, Worker
+from celld import Depends, HTTPError, Request, Response, State, Worker
 
 
 class Count(BaseModel):

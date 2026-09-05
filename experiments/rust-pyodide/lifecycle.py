@@ -16,8 +16,8 @@ from pathlib import Path
 from bridge import HERE, build_rust, compile_runtime
 from compare import ROOT, call_ids, summarize, timed
 from harness import measured_node, wait_inactive
-from celld_python.build import build, lock
-from celld_python.dev import environment, free_port
+from celld.build import build, lock
+from celld.dev import environment, free_port
 from test_celld import publish_local, request
 
 
@@ -57,7 +57,7 @@ def idle_bench(backend, builder, rounds):
     return records
 
 
-SOURCE = '''from celld_python import App, State
+SOURCE = '''from celld import App, State
 from pydantic import BaseModel
 app = App
 class Counter(BaseModel):

@@ -4,10 +4,10 @@ import sys
 
 import pytest
 
-from celld_python import Client
-from celld_python.cli import main
-from celld_python.commands import arguments, signatures
-from celld_python.decorators import load_worker
+from celld import Client
+from celld.cli import main
+from celld.commands import arguments, signatures
+from celld.decorators import load_worker
 from test_client import Reply, Transport
 
 
@@ -27,7 +27,7 @@ def test_cli_calls_the_function_without_transport_syntax(monkeypatch, capsys):
         return {"message":"Hello, Sam"}
     monkeypatch.setattr(Client, "call", call)
     monkeypatch.setenv("CELLD_ENDPOINT", "http://localhost:9876/hello")
-    monkeypatch.setattr(sys, "argv", ["celld-py", "call", "hello", "name=Sam", "--context", '{"actor":"Sam"}'])
+    monkeypatch.setattr(sys, "argv", ["pycelld", "call", "hello", "name=Sam", "--context", '{"actor":"Sam"}'])
     main()
     assert json.loads(capsys.readouterr().out) == {"message":"Hello, Sam"}
     assert observed == [("http://localhost:9876/hello", "hello", {"name":"Sam"}, {"actor":"Sam"})]
@@ -35,7 +35,7 @@ def test_cli_calls_the_function_without_transport_syntax(monkeypatch, capsys):
 
 def test_bare_function_decorator_loads_without_an_app_instance(tmp_path):
     path = tmp_path / "single.py"
-    path.write_text('from celld_python import function\n@function\ndef hello(name: str = "world") -> str:\n    return "Hello, " + name\n')
+    path.write_text('from celld import function\n@function\ndef hello(name: str = "world") -> str:\n    return "Hello, " + name\n')
     spec = importlib.util.spec_from_file_location("single", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["single"] = module
@@ -63,7 +63,7 @@ def test_client_default_endpoint_and_schema_authentication(monkeypatch):
 
 
 async def test_async_describe_and_schema_errors():
-    from celld_python import AsyncClient, RemoteError
+    from celld import AsyncClient, RemoteError
     client = AsyncClient()
     client._opener = Transport(Reply({"version":1,"functions":{}}))
     assert (await client.describe())["functions"] == {}
@@ -75,8 +75,8 @@ async def test_async_describe_and_schema_errors():
 
 
 def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, monkeypatch):
-    from celld_python import cli, dev
-    from celld_python.scaffold import create
+    from celld import cli, dev
+    from celld.scaffold import create
     project = create(tmp_path / "hello")
     locked, runs = [], []
     def prepare(target):
@@ -84,7 +84,7 @@ def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, mon
         (target / "celld.lock.json").write_text("existing pin")
     monkeypatch.setattr(cli, "lock", prepare)
     monkeypatch.setattr(dev, "run", lambda target, **options: runs.append((target, options)))
-    monkeypatch.setattr(sys, "argv", ["celld-py", "dev", str(project), "--idle-timeout", "60"])
+    monkeypatch.setattr(sys, "argv", ["pycelld", "dev", str(project), "--idle-timeout", "60"])
     main()
     main()
     assert locked == [project]
@@ -93,7 +93,7 @@ def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, mon
 
 
 def test_dev_uses_celld_default_parallelism_without_inheriting_fleet_settings(monkeypatch):
-    from celld_python.dev import environment
+    from celld.dev import environment
     monkeypatch.setenv("CELLD_MAX_STATELESS_ISOLATES", "1")
     monkeypatch.setenv("CELLD_BUCKET", "production")
     env = environment()

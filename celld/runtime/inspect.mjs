@@ -19,7 +19,7 @@ for (const [name, source] of Object.entries({...spec.sdk,...spec.sources})) {
   py.FS.writeFile(path,source);
 }
 py.runPython("import sys; sys.path.insert(0,'/app')");
-const sdk=py.pyimport('celld_python');
+const sdk=py.pyimport('celld');
 const app=sdk.load_worker(spec.entrypoint);
 const result={routes:JSON.parse(app.describe()),schema:JSON.parse(app.schema())};
 fs.writeFileSync(process.argv[3],JSON.stringify(result));

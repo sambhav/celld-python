@@ -1,15 +1,13 @@
 name: runtime benchmarks
 on:
   pull_request:
-    paths:
-      - 'experiments/rust-pyodide/*.py'
-      - 'experiments/rust-pyodide/runtime/**'
-      - '.github/workflows/benchmarks.yml'
+    types: [labeled]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   compare:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -54,8 +52,8 @@ jobs:
           key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
       - name: Verify package inputs
         run: |
-          celld-py lock examples/hello
-          celld-py lock examples/fleet.toml
+          pycelld lock examples/hello
+          pycelld lock examples/fleet.toml
           git diff --exit-code -- examples/hello/celld.lock.json examples/celld.lock.json
       - name: Test Rust worker contracts on stock celld
         run: |

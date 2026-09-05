@@ -42,7 +42,7 @@ def configurations(target: Path):
     for entry in entries:
         directory = (root / entry["path"]).resolve()
         project = tomllib.loads((directory / "pyproject.toml").read_text())
-        settings = project.get("tool", {}).get("celld-python", {})
+        settings = project.get("tool", {}).get("celld", {})
         app = dict(name=entry["name"], mount=entry.get("mount", "/"),
                    entrypoint=settings.get("entrypoint", "app"),
                    source=settings.get("source", "src"),
@@ -142,7 +142,7 @@ def locked_packages(app, catalog, cache):
         if req.marker and not req.marker.evaluate(env):
             continue
         if req.url:
-            raise ValueError("Declare URL dependencies as local wheels under tool.celld-python.wheels")
+            raise ValueError("Declare URL dependencies as local wheels under tool.celld.wheels")
         name = canonicalize_name(req.name)
         if name not in available:
             raise ValueError(f"{name} is not in Pyodide {PYODIDE}; supply a pure Python or matching WASM wheel and its dependencies")
@@ -231,10 +231,10 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
     root, name, apps = configurations(target)
     lock_path = root / "celld.lock.json"
     if not lock_path.is_file():
-        raise ValueError("Missing celld.lock.json; run celld-py lock first")
+        raise ValueError("Missing celld.lock.json; run pycelld lock first")
     locked = json.loads(lock_path.read_text())
     if locked.get("format") != 1 or locked["runtime"] != PYODIDE or locked["inputs"] != inputs_hash(apps):
-        raise ValueError("Configuration changed; run celld-py lock again")
+        raise ValueError("Configuration changed; run pycelld lock again")
     cache = root / ".celld-python" / "cache"
     runtime = cache / "runtime" / PYODIDE
     for file, sha in locked["runtime_files"].items():
@@ -244,7 +244,7 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
     output.mkdir(parents=True, exist_ok=True)
     package = Path(__file__).parent
     shutil.copytree(package / "licenses", output / "licenses", dirs_exist_ok=True)
-    sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
+    sdk = {"celld/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     port_runtime(runtime, output)
     for file in ("host.js", "assets.js", "wasm.js"):
         shutil.copyfile(package / "runtime" / file, output / file)
@@ -265,8 +265,8 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
             if path.is_symlink() or not path.resolve().is_relative_to(source):
                 raise ValueError(f"Source symlink not permitted: {path}")
             relative = path.relative_to(source).as_posix()
-            if relative.startswith("celld_python/"):
-                raise ValueError("App sources cannot shadow celld_python")
+            if relative == "celld.py" or relative.startswith("celld/"):
+                raise ValueError("App sources cannot shadow celld")
             sources[relative] = path.read_text()
         inspection = cache / "inspect" / app["name"]
         package_dir = inspection / "packages"

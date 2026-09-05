@@ -3,7 +3,7 @@ import zipfile
 
 import pytest
 
-from celld_python.build import digest, locked_packages, replace_once, wheel_metadata
+from celld.build import digest, locked_packages, replace_once, wheel_metadata
 
 INFO = {"python": "3.14.2", "abi_version": "2026_0"}
 

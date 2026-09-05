@@ -3,21 +3,34 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "celld-python"
+name = "celld"
 version = "0.1.0"
 description = "Typed Python functions and durable state on an S3-backed celld fleet"
+readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY.md"]
 requires-python = ">=3.11"
 dependencies = ["pydantic>=2.12,<3", "packaging>=24"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+[project.urls]
+Repository = "https://github.com/sambhav/celld-python"
+Issues = "https://github.com/sambhav/celld-python/issues"
+Documentation = "https://github.com/sambhav/celld-python#readme"
 
 [project.scripts]
-celld-py = "celld_python.cli:main"
+pycelld = "celld.cli:main"
 
 [tool.setuptools.package-data]
-celld_python = ["runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
+celld = ["runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
 
 [tool.setuptools.packages.find]
-include = ["celld_python*"]
+include = ["celld*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

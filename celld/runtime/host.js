@@ -61,7 +61,7 @@ async function boot(app) {
     const path='/app/'+name;py.FS.mkdirTree(path.slice(0,path.lastIndexOf('/')));py.FS.writeFile(path,source);
   }
   py.runPython("import sys; sys.path.insert(0,'/app')");
-  const module=py.pyimport('celld_python');const worker=module.load_worker(app.entrypoint);module.destroy();
+  const module=py.pyimport('celld');const worker=module.load_worker(app.entrypoint);module.destroy();
   return {py,worker};
 }
 function response(result) {

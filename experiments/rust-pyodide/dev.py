@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from bridge import build_rust
-from celld_python import dev
+from celld import dev
 
 if __name__ == "__main__":
     if sys.argv[1] == "rust":

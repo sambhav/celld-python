@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from celld_python.build import build, replace_once
+from celld.build import build, replace_once
 
 HERE = Path(__file__).resolve().parent
 
@@ -11,7 +11,7 @@ HERE = Path(__file__).resolve().parent
 def compile_runtime():
     subprocess.run(["cargo", "build", "--manifest-path", str(HERE / "runtime/Cargo.toml"),
                     "--locked", "--release", "--target", "wasm32-unknown-unknown"], check=True)
-    subprocess.run(["wasm-bindgen", str(HERE / "runtime/target/wasm32-unknown-unknown/release/celld_python_runtime.wasm"),
+    subprocess.run(["wasm-bindgen", str(HERE / "runtime/target/wasm32-unknown-unknown/release/celld_runtime.wasm"),
                     "--target", "web", "--out-dir", str(HERE / "build"), "--out-name", "rust_runtime"], check=True)
 
 

@@ -1,10 +1,10 @@
-# celld-python
+# celld for Python
 
 Python worker functions and durable state on [celld](https://github.com/denoland/celld).
 One S3 bucket is the only external persistence/coordination service. **Experimental.**
 
 ```python
-from celld_python import App
+from celld import App
 
 app = App
 
@@ -26,6 +26,10 @@ The OSS package supplies functions, Pydantic validation, middleware, dependency
 injection, context, retries, and keyed state. Your platform owns authentication,
 tenancy, quotas, and deployment policy. There is no account registry or auth database.
 
+The distribution and import are named `celld`; the Python CLI is `pycelld`,
+so it can coexist with the native `celld` executable. The first PyPI release is
+being prepared; install from this checkout until it is published.
+
 ## Start a worker
 
 Build requirements: Python 3.11+, Node.js 22+, npm, **celld 0.4.0**, and esbuild on PATH.
@@ -37,19 +41,19 @@ python -m pip install -e .
 npm install -g esbuild@0.25.12
 # Install celld 0.4.0 using its upstream release instructions.
 
-celld-py init hello
-celld-py dev hello
+pycelld init hello
+pycelld dev hello
 ```
 
 On the first run, `dev` prepares the pinned runtime and declared packages and
 writes `celld.lock.json`. Commit that file. Later dependency changes require
-`celld-py lock hello`; an existing lock is never silently updated.
+`pycelld lock hello`; an existing lock is never silently updated.
 
 In another terminal, discover and call functions directly:
 
 ```sh
-celld-py functions
-celld-py call hello name=Sam
+pycelld functions
+pycelld call hello name=Sam
 ```
 
 Arguments are `name=value`: JSON numbers, lists, objects, booleans and null keep
@@ -59,7 +63,7 @@ the function's result. Use `--context '{"actor":"Sam"}'` for caller context.
 
 Clients and CLI commands default to local dev on port 9876. Set `CELLD_ENDPOINT`
 or pass an explicit endpoint to select a deployed app. `client.describe()`
-returns its contract, and `celld-py functions --json` prints it. The async client
+returns its contract, and `pycelld functions --json` prints it. The async client
 also supports `await client.describe()`.
 
 Edit `hello/src/app.py`; the worker rebuilds and restarts. Invalid edits keep the
@@ -68,13 +72,13 @@ to loopback and uses celld's local SQLite object store; it needs no cloud creden
 
 The client is generated at `hello/.celld-python/build/hello_client.py`. Copy it
 into your caller project, or add that directory to `PYTHONPATH`. Install
-`celld-python` in the caller environment too. `App()` also works when you want
+`celld` in the caller environment too. `App()` also works when you want
 an explicit app instance; `app = App` registers functions in their defining module.
 
 For a tiny app, the app declaration is optional:
 
 ```python
-from celld_python import function
+from celld import function
 
 @function
 def hello(name: str = "world") -> str:
@@ -91,7 +95,7 @@ Arguments and results are validated with Pydantic. Both sync and async functions
 work; neither needs a request object, URL, status code, or response envelope.
 
 ```python
-from celld_python import App, Context, ClientInfo
+from celld import App, Context, ClientInfo
 from pydantic import BaseModel
 
 app = App
@@ -107,7 +111,7 @@ def greet(name: str, ctx: Context[Caller]) -> str:
 ```python
 # Caller and both clients are generated from your worker contract.
 from hello_client import Caller, Client, AsyncClient
-from celld_python import ClientInfo
+from celld import ClientInfo
 
 client = Client(endpoint, context=Caller(actor="Sam"),
                 client_info=ClientInfo(name="dashboard", version="1.0"))
@@ -133,13 +137,13 @@ put aliased fields in a Pydantic model. Names colliding with client helpers
 Regenerate a saved contract with:
 
 ```sh
-celld-py client hello/.celld-python/build/hello.schema.json --out hello_client.py
+pycelld client hello/.celld-python/build/hello.schema.json --out hello_client.py
 ```
 
 ## Durable state
 
 ```python
-from celld_python import App, State
+from celld import App, State
 from pydantic import BaseModel
 
 app = App
@@ -179,7 +183,7 @@ other schema migrations are currently application-managed.
 
 ```python
 from typing import Annotated
-from celld_python import App, Context, Depends, Error, Invocation
+from celld import App, Context, Depends, Error, Invocation
 
 app = App
 
@@ -212,7 +216,7 @@ using exponential jitter and one logical call ID. It does not retry application,
 validation or authorization errors, or arbitrary execution failures.
 
 ```python
-from celld_python import RetryPolicy, RemoteError
+from celld import RetryPolicy, RemoteError
 
 client = Client(endpoint, retries=RetryPolicy(attempts=3), timeout=60)
 operation = client.with_call_id("checkout-operation-0001")
@@ -239,7 +243,7 @@ name = "math"
 version = "0.1.0"
 dependencies = ["numpy==2.4.6"]
 
-[tool.celld-python]
+[tool.celld]
 entrypoint = "app"  # default
 source = "src"     # default
 # Pure Python or matching WASM wheels outside the pinned Pyodide catalog:
@@ -248,7 +252,7 @@ source = "src"     # default
 
 ```python
 import numpy as np
-from celld_python import App
+from celld import App
 
 app = App
 
@@ -277,10 +281,10 @@ Compose several apps into one fleet bundle with a fleet TOML file; see
 Python interpreter instances. celld manages the underlying shared V8 isolate pool.
 
 ```sh
-celld-py lock examples/fleet.toml
-celld-py dev examples/fleet.toml
-celld-py build examples/fleet.toml --out dist
-celld-py deploy examples/fleet.toml -- --bucket my-celld-bucket
+pycelld lock examples/fleet.toml
+pycelld dev examples/fleet.toml
+pycelld build examples/fleet.toml --out dist
+pycelld deploy examples/fleet.toml -- --bucket my-celld-bucket
 ```
 
 Deployment uses your configured celld/S3 credentials. Bucket configuration and
@@ -290,7 +294,7 @@ clients and Wrangler configuration. The examples mount hello at `/hello`,
 counters at `/counters`, and NumPy at `/math`; supply the app's mounted endpoint
 to its generated client.
 
-To exercise idle scale-down locally, use `celld-py dev hello --idle-timeout 60`.
+To exercise idle scale-down locally, use `pycelld dev hello --idle-timeout 60`.
 In a fleet, configure `CELLD_IDLE_EVICT_S=60` on your celld nodes. Age-based eviction
 is disabled by default in celld 0.4.0. Eviction releases idle worker cells; the
 next call reconstructs their interpreter and restores state. It does not stop

@@ -44,8 +44,8 @@ jobs:
           key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
       - name: Fetch and verify locked artifacts
         run: |
-          celld-py lock examples/hello
-          celld-py lock examples/fleet.toml
+          pycelld lock examples/hello
+          pycelld lock examples/fleet.toml
           git diff --exit-code -- examples/hello/celld.lock.json examples/celld.lock.json
       - name: Test actual celld and offline bundles
         run: CELLD_E2E=1 pytest tests/test_celld.py -q

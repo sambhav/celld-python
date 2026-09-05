@@ -12,7 +12,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "experiments/rust-pyodide"))
 from compare import call_ids, timed
 from harness import measured_node, wait_inactive
-from celld_python.build import build
+from celld.build import build
 from test_celld import publish_local
 
 

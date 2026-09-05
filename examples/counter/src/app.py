@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from celld_python import App, Context, Depends, Invocation, State
+from celld import App, Context, Depends, Invocation, State
 from pydantic import BaseModel, Field
 
 app = App

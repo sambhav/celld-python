@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from celld_python.build import build
+from celld.build import build
 
 pytestmark = pytest.mark.skipif(os.environ.get("CELLD_E2E") != "1", reason="Set CELLD_E2E=1 with celld/esbuild and locked artifacts")
 ROOT = Path(__file__).parents[1]
@@ -131,10 +131,10 @@ def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
         assert json.loads(request(port, "/hello/hello", {})[1]) == {"result": "Hello, world"}
         import sys
         endpoint = f"http://127.0.0.1:{port}/hello"
-        result = subprocess.run([sys.executable, "-m", "celld_python.cli", "call", "hello", "name=Sam", "--endpoint", endpoint],
+        result = subprocess.run([sys.executable, "-m", "celld.cli", "call", "hello", "name=Sam", "--endpoint", endpoint],
                                 capture_output=True, text=True, timeout=60, check=True)
         assert json.loads(result.stdout) == "Hello, Sam"
-        result = subprocess.run([sys.executable, "-m", "celld_python.cli", "functions", "--endpoint", endpoint],
+        result = subprocess.run([sys.executable, "-m", "celld.cli", "functions", "--endpoint", endpoint],
                                 capture_output=True, text=True, timeout=60, check=True)
         assert "hello(name: str = 'world') -> str" in result.stdout
         status, body, _ = request(port, "/math/mean", {"values": [1, 2, 6]})
@@ -163,7 +163,7 @@ def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
 
 def test_generated_clients_and_host_context_hook(tmp_path):
     from test_codegen import load
-    from celld_python import ClientInfo, RemoteError
+    from celld import ClientInfo, RemoteError
     import asyncio
 
     # This fixture is platform policy, deliberately outside the OSS runtime.
@@ -203,8 +203,8 @@ def test_generated_clients_and_host_context_hook(tmp_path):
 
 def test_dev_reloads_python_sources_and_survives_invalid_edits(tmp_path):
     import sys
-    from celld_python import Client
-    from celld_python.build import lock
+    from celld import Client
+    from celld.build import lock
 
     target = tmp_path / "minimal"
     shutil.copytree(ROOT / "examples" / "minimal", target)
@@ -215,14 +215,14 @@ def test_dev_reloads_python_sources_and_survives_invalid_edits(tmp_path):
     wheel(target / "demo-1.0-py3-none-any.whl")
     config = target / "pyproject.toml"
     config.write_text(config.read_text().replace("dependencies = []", 'dependencies = ["demo==1.0"]') +
-                      '\n[tool.celld-python]\nwheels = ["demo-1.0-py3-none-any.whl"]\n')
+                      '\n[tool.celld]\nwheels = ["demo-1.0-py3-none-any.whl"]\n')
     source = target / "src" / "app.py"
     source.write_text("from demo import VALUE\nassert VALUE == 42\n" + source.read_text())
     lock(target)
     port = port_number()
     log_path = tmp_path / "dev.log"
     with log_path.open("w") as log:
-        process = subprocess.Popen([sys.executable, "-m", "celld_python.cli", "dev", str(target), "--port", str(port)],
+        process = subprocess.Popen([sys.executable, "-m", "celld.cli", "dev", str(target), "--port", str(port)],
                                    env=environment(), stdout=log, stderr=log)
         def wait_for(text, count=1):
             deadline = time.monotonic() + 90

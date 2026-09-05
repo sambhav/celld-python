@@ -9,7 +9,7 @@ from .codegen import generate
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="celld-py")
+    parser = argparse.ArgumentParser(prog="pycelld")
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Create a hello-world worker")
     init.add_argument("directory", type=Path)
@@ -51,7 +51,7 @@ def main():
         if args.command == "init":
             from .scaffold import create
             path = create(args.directory)
-            print(f"Created {path}. Start it with: celld-py dev {path}")
+            print(f"Created {path}. Start it with: pycelld dev {path}")
         elif args.command == "lock":
             print(lock(args.project))
         elif args.command == "client":
@@ -80,7 +80,7 @@ def main():
                     print(json.dumps(client.call(args.function, **arguments(args.arguments)), indent=2, ensure_ascii=False))
             except RemoteError as error:
                 recovery = f" (call ID: {error.call_id})" if error.call_id else ""
-                parser.exit(1, f"celld-py: {error}{recovery}\n")
+                parser.exit(1, f"pycelld: {error}{recovery}\n")
         else:
             output = build(args.project, getattr(args, "out", None), host=args.host)
             if args.command == "build":
@@ -90,7 +90,7 @@ def main():
     except KeyboardInterrupt:
         pass
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:
-        parser.exit(1, f"celld-py: {error}\n")
+        parser.exit(1, f"pycelld: {error}\n")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, Field
 
-from celld_python import Context, Depends, Error, Invocation, Request, State, Worker
+from celld import Context, Depends, Error, Invocation, Request, State, Worker
 
 
 class Caller(BaseModel):

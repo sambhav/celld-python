@@ -1,13 +1,13 @@
 # Third-party components
 
-celld-python is Apache-2.0. Dependencies keep their own licenses.
+The celld Python SDK is Apache-2.0. Dependencies keep their own licenses.
 
 - **celld 0.4.0:** Apache-2.0, Deno Land Inc. Installed separately. Source:
   https://github.com/denoland/celld/tree/v0.4.0
 - **Pyodide 314.0.6:** Mozilla Public License 2.0. Source, including the
   Emscripten runtime build configuration:
   https://github.com/pyodide/pyodide/tree/314.0.6
-  `celld_python/build.py:port_runtime` records the changes made to the generated
+  `celld/build.py:port_runtime` records the changes made to the generated
   loader at build time; original artifacts are pinned in `celld.lock.json`.
   The modified loader and assembly glue are available as source in each build.
 - **CPython 3.14.2:** Python Software Foundation license and accompanying notices.

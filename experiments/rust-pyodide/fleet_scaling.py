@@ -16,7 +16,7 @@ from bridge import HERE
 from compare import ROOT, timed
 from harness import measured_node
 from scaling import SOURCE, scenario
-from celld_python.build import build, lock
+from celld.build import build, lock
 from test_celld import publish_local
 
 
