@@ -1,0 +1,73 @@
+name: runtime benchmarks
+on:
+  pull_request:
+    paths:
+      - 'experiments/rust-pyodide/**'
+      - '.github/workflows/benchmarks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -e . pytest pytest-asyncio
+      - run: npm install -g esbuild@0.25.12
+      - name: Install pinned runtimes
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --target wasm32-unknown-unknown
+          rustup default 1.98.1
+          mkdir -p "$RUNNER_TEMP/bench-bin"
+          curl -fsSL --retry 3 https://github.com/denoland/celld/releases/download/v0.4.0/celld-x86_64-unknown-linux-gnu.gz -o /tmp/celld.gz
+          echo '0488628597154725db2f61f85434fb381e1b2535d1e9f097c6d20727cd337973  /tmp/celld.gz' | sha256sum -c -
+          gunzip -c /tmp/celld.gz > "$RUNNER_TEMP/bench-bin/celld"
+          chmod +x "$RUNNER_TEMP/bench-bin/celld"
+          curl -fsSL --retry 3 https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.128/wasm-bindgen-0.2.128-x86_64-unknown-linux-musl.tar.gz -o /tmp/wasm-bindgen.tar.gz
+          echo 'b51f0208fdff83515a787bd8ab9ac5865ed84dabb66d0c709957bb59793c645f  /tmp/wasm-bindgen.tar.gz' | sha256sum -c -
+          tar --no-same-owner -xzf /tmp/wasm-bindgen.tar.gz -C /tmp
+          cp /tmp/wasm-bindgen-0.2.128-x86_64-unknown-linux-musl/wasm-bindgen "$RUNNER_TEMP/bench-bin/"
+          echo "$RUNNER_TEMP/bench-bin" >> "$GITHUB_PATH"
+      - name: Record the actual runner
+        run: |
+          mkdir -p experiments/rust-pyodide/build
+          lscpu > experiments/rust-pyodide/build/cpu.txt
+          free -b > experiments/rust-pyodide/build/memory.txt
+          rustc --version
+          node --version
+          python --version
+          cat experiments/rust-pyodide/build/cpu.txt
+          cat experiments/rust-pyodide/build/memory.txt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            examples/.celld-python/cache
+            examples/hello/.celld-python/cache
+          key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
+      - name: Verify package inputs
+        run: |
+          celld-py lock examples/hello
+          celld-py lock examples/fleet.toml
+          git diff --exit-code -- examples/hello/celld.lock.json examples/celld.lock.json
+      - name: Test Rust worker contracts on stock celld
+        run: |
+          cargo test --manifest-path experiments/rust-pyodide/runtime/Cargo.toml --locked
+          CELLD_E2E=1 pytest experiments/rust-pyodide/test_runtime.py -q
+      - name: Compare both backends on this runner
+        run: python experiments/rust-pyodide/compare.py --rounds 4 --calls 100
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-benchmarks
+          path: |
+            experiments/rust-pyodide/build/*.json
+            experiments/rust-pyodide/build/*.txt
+            experiments/rust-pyodide/build/*.log
+            /tmp/pytest-of-*/**/*.log
