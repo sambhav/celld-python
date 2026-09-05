@@ -3,8 +3,11 @@
 The [cell-density patch](celld-0.4.0-cell-density.patch) makes the native packing
 ceiling configurable from 1 to 32, preserving the default and existing packing/
 retirement rules. See the [packing experiment](../experiments/packing) for the
-tests and same-binary GitHub comparison. It is optional and has not been sent
-upstream. The stock celld release remains the SDK's default requirement.
+tests and same-binary GitHub comparison. The same native change is now in
+[draft PR #1 on the user's celld fork](https://github.com/sambhav/celld/pull/1),
+with focused Rust CI. Build that pinned revision or apply this patch to upstream
+v0.4.0; the fork already contains it. It remains optional and has not been sent
+to denoland/celld. The stock celld release remains the SDK's default requirement.
 
 ## Development watcher
 

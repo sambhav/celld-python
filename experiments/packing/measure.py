@@ -1,4 +1,5 @@
 """Compare packing limits with identical code, clients, CPU and one patched binary."""
+import hashlib
 import json
 import os
 import shutil
@@ -21,6 +22,8 @@ from test_celld import publish_local
 def main():
     binary = shutil.which("celld")
     assert binary and "CELLD_MAX_CELLS_PER_ISOLATE" in subprocess.check_output([binary, "--help"], text=True), "Use the cell-density patched celld binary"
+    with open(binary, "rb") as binary_file:
+        binary_sha256 = hashlib.file_digest(binary_file, "sha256").hexdigest()
     target = HERE / "build" / ("app-" + uuid.uuid4().hex[:12])
     (target / "src").mkdir(parents=True)
     (target / "src/app.py").write_text(SOURCE)
@@ -29,6 +32,9 @@ def main():
     lock(target)
     report = {"run_url":f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', 'sambhav/celld-python')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}",
         "head_sha":os.environ.get("BENCH_HEAD_SHA", ""), "upstream_sha":"a52f9905425bc41134d817694bdc2c50bcc5e856",
+        "native_repository":os.environ.get("CELLD_NATIVE_REPOSITORY", ""),
+        "native_sha":os.environ.get("CELLD_NATIVE_SHA", ""),
+        "binary_sha256":binary_sha256,
         "profile":"lab (thin LTO); same patched binary for every density", "store":"local SQLite development object store",
         "cpu":subprocess.check_output(["lscpu"], text=True), "memory":subprocess.check_output(["free", "-b"], text=True),
         "clients":8,"keys":8,"cpu_iterations":1000000,"warmup_calls_per_key":4,"seconds_per_sample":10,"samples":[]}

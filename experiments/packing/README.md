@@ -13,15 +13,20 @@ serialization, durability, or node memory admission. It cannot increase the
 existing failure boundary. The variable is validated at startup and documented
 in native help. Stock celld does not support it.
 
-This is an experiment, not an SDK default or a published celld fork. A mixed
+The native change is available in [draft PR #1 on the celld fork](https://github.com/sambhav/celld/pull/1).
+It remains an opt-in experiment; the SDK uses stock celld by default. A mixed
 fleet can use different packing limits because this is local placement policy,
 not a wire or persistence format change. Existing cells are not migrated by
 changing a configuration value; a new process reads the value at startup.
 
 ## Measurement
 
-The `native cell packing experiment` GitHub workflow builds the pinned upstream
-commit with this patch using Rust 1.98.1 and celld's `lab` profile (thin LTO).
+The `native cell packing experiment` GitHub workflow builds the fork at
+[`1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`](https://github.com/sambhav/celld/commit/1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec)
+using Rust 1.98.1 and celld's `lab` profile (thin LTO). It records the native
+source revision and binary checksum with each new report. The recorded comparison
+below predates the fork PR and used upstream `a52f990` plus the patch; all four
+ported native/doc files are byte-identical to that measured source.
 Every configuration uses that identical binary on the same recorded runner.
 Do not compare its absolute latency to an official release binary built with a
 different profile. Trigger the workflow manually or add `benchmark-packing` to
@@ -47,7 +52,35 @@ for CPU-heavy pools on similar hardware, not a universal replacement for 32.
 The SDK's host and its Pyodide loader are unchanged. More isolates still cannot
 make one state key execute concurrently or create more host CPU resources.
 
-## Check the patch locally
+## Build from the fork
+
+```sh
+git clone https://github.com/sambhav/celld.git celld-native
+git -C celld-native checkout 1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec
+cargo test --manifest-path celld-native/tools/packing-checks/Cargo.toml --locked
+cargo build --manifest-path celld-native/Cargo.toml -p celld --profile lab --locked
+```
+
+Set `CELLD_MAX_CELLS_PER_ISOLATE=2` when starting this native binary on a
+CPU-heavy pool to try the tested density. Use the same build profile and workload
+when comparing it with 32. The Python SDK and app code need no changes.
+The fork's [focused GitHub checks](https://github.com/sambhav/celld/actions/runs/33983676627)
+pass all five Rust cases.
+
+From the SDK repository, run the density comparison with the fork binary:
+
+```sh
+CELLD_NATIVE_REPOSITORY=sambhav/celld \
+CELLD_NATIVE_SHA=1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec \
+PATH=/path/to/celld-native/target/lab:$PATH python experiments/packing/measure.py
+```
+
+See the workflow for Python/Node prerequisites and cache preparation. The
+full benchmark is intended for a GitHub runner with recorded CPU and memory.
+
+## Apply the standalone patch instead
+
+For an upstream v0.4.0 checkout that does not already contain this change:
 
 ```sh
 git -C /path/to/celld apply /path/to/celld-python/patches/celld-0.4.0-cell-density.patch

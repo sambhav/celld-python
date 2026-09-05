@@ -12,12 +12,14 @@ jobs:
     timeout-minutes: 75
     env:
       CARGO_BUILD_JOBS: '2'
+      CELLD_NATIVE_REPOSITORY: sambhav/celld
+      CELLD_NATIVE_SHA: 1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: denoland/celld
-          ref: a52f9905425bc41134d817694bdc2c50bcc5e856
+          repository: ${{ env.CELLD_NATIVE_REPOSITORY }}
+          ref: ${{ env.CELLD_NATIVE_SHA }}
           path: upstream
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -31,21 +33,20 @@ jobs:
           rustup default 1.98.1
           python -m pip install -e . pytest pytest-asyncio
           npm install -g esbuild@0.25.12
-      - name: Apply only the density patch
+      - name: Verify the standalone patch matches the pinned fork
         run: |
-          git -C upstream apply --check ../patches/celld-0.4.0-cell-density.patch
-          git -C upstream apply ../patches/celld-0.4.0-cell-density.patch
-          git -C upstream diff --check
+          test "$(git -C upstream rev-parse HEAD)" = "$CELLD_NATIVE_SHA"
+          git -C upstream apply --reverse --check ../patches/celld-0.4.0-cell-density.patch
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             upstream/target
-          key: celld-density-a52f990-1.98.1-${{ hashFiles('patches/celld-0.4.0-cell-density.patch') }}
+          key: celld-density-a52f990-1.98.1-${{ env.CELLD_NATIVE_SHA }}
           restore-keys: celld-density-a52f990-1.98.1-
       - name: Test parser, packing boundaries, and retirement invariants
-        run: python experiments/packing/check.py upstream
+        run: cargo test --manifest-path upstream/tools/packing-checks/Cargo.toml --locked
       - name: Build the native experiment
         run: |
           cargo build --manifest-path upstream/Cargo.toml -p celld --profile lab --locked
