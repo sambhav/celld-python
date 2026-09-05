@@ -2,7 +2,7 @@
 from .app import ClientInfo, Context, Depends, Error, HTTPError, Invocation, Request, Response, State, Worker
 from .decorators import App, delete, get, load_worker, middleware, patch, post, put, route
 
-__all__ = ["App", "ClientInfo", "Context", "Depends", "Error", "Invocation", "Client", "AsyncClient", "RemoteError", "HTTPError", "Request", "Response", "State", "Worker",
+__all__ = ["App", "ClientInfo", "Context", "Depends", "Error", "Invocation", "Client", "AsyncClient", "RetryPolicy", "RemoteError", "HTTPError", "Request", "Response", "State", "Worker",
            "get", "post", "put", "patch", "delete", "route", "middleware"]
 
 

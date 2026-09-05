@@ -76,8 +76,8 @@ function failure(exception) {
 // Every scope/app/key (or stateless slot) owns a distinct celld V8 isolate and
 // Python interpreter. User code never runs in the shared ingress isolate.
 export class PythonCell {
-  constructor(ctx){this.ctx=ctx;this.pending=Promise.resolve();this.runtime=null;this.initialized=false;}
-  fetch(request){const result=this.pending.then(()=>this.execute(request));this.pending=result.catch(()=>{});return result.catch(failure);}
+  constructor(ctx){this.ctx=ctx;this.runtime=null;this.initialized=false;}
+  fetch(request){return this.ctx.blockConcurrencyWhile(()=>this.execute(request)).catch(failure);}
   initialize(){
     if(this.initialized)return;
     this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS _python_state (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL)');

@@ -227,6 +227,7 @@ def port_runtime(runtime: Path, output: Path):
 
 
 def build(target: Path, output: Path | None = None, *, host: Path | None = None):
+    from .codegen import generate
     root, name, apps = configurations(target)
     lock_path = root / "celld.lock.json"
     if not lock_path.is_file():
@@ -285,6 +286,7 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
         manifest.append(dict(name=app["name"], mount=app["mount"], entrypoint=app["entrypoint"],
                              lock=spec, packages=list(spec["packages"]), sources=sources, **inspected))
         (output / (app["name"] + ".schema.json")).write_text(json.dumps(inspected["schema"], indent=2) + "\n")
+        generate(inspected["schema"], output / (app["name"].replace("-", "_") + "_client.py"))
     (output / "manifest.js").write_text("export const apps=" + json.dumps(manifest) + ";\nexport const sdk=" + json.dumps(sdk) + ";\n")
     (output / "asset-data.js").write_text("export const assets=" + json.dumps(assets) + ";\n")
     main = "host.js"
