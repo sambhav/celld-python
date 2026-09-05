@@ -16,6 +16,9 @@ celld-py = "celld_python.cli:main"
 [tool.setuptools.package-data]
 celld_python = ["runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
 
+[tool.setuptools.packages.find]
+include = ["celld_python*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

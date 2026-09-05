@@ -224,7 +224,8 @@ def mean(values: list[float]) -> float:
 including Python/WASM compatibility and environment markers. `celld.lock.json`
 pins SHA-256 hashes. Commit it. For packages outside the catalog, supply their
 pure Python or matching Emscripten wheels and their dependencies explicitly;
-ordinary Linux/macOS extension wheels cannot run in WASM.
+ordinary Linux/macOS extension wheels cannot run in WASM. Add each top-level
+package to `dependencies`; `wheels` supplies its distribution artifact.
 
 `build` verifies cached artifacts, checks app imports inside the pinned WASM
 runtime, and extracts schemas. It runs offline. Package/stdlib loads at runtime

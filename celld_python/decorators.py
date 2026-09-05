@@ -52,7 +52,7 @@ def function(handler=None, *, key=None, namespace=None):
 
 
 class App:
-    """Decorator namespace: ``app = App``, then ``@app.post``.
+    """Decorator namespace: ``app = App``, then ``@app.function``.
 
     Registrations belong to the decorated function's module. ``App()`` also
     works when an explicit, independently composed Worker object is desired.
