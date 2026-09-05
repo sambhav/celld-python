@@ -56,6 +56,16 @@ store is used; there is no remote S3 durability/network latency or multi-host
 scaling in these measurements. No TTL, packing default, or production replay
 guarantee is silently changed to obtain a higher throughput number.
 
+The driver's cell tests default to at most 512 clients (32 per cell), leaving
+headroom below celld's 64-request admission ceiling. A response can arrive before
+the background event driver drops its admission permit. A 1,024-client cell
+screen passed but later returned 503 during confirmation; that setting is not
+reported as reliable capacity. Stateless-pool tests still reach 1,024 clients.
+
+The `benchmark-throughput-final` label compares baseline/current durable Python,
+direct stateless Python, and bare JavaScript with this headroom. It reuses the
+identical native binary artifact built and tested in run `33988408853`.
+
 The `benchmark-throughput-tuned` label compares the SDK before and after cached
 Pydantic/DI metadata on the same runner. `baseline-durable` and
 `baseline-concurrent` embed `celld/app.py` from immutable commit

@@ -101,13 +101,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seconds", type=float, default=6)
     parser.add_argument("--rounds", type=int, default=1)
-    parser.add_argument("--clients", type=int, nargs="+", default=[1,16,64,256])
+    parser.add_argument("--clients", type=int, nargs="+", default=[1,16,64,256,512,1024])
     parser.add_argument("--densities", type=int, nargs="+", default=[32,2])
     parser.add_argument("--modes", nargs="+", default=["bare-stateless", "python-durable", "python-no-receipts", "python-concurrent"])
     parser.add_argument("--smoke", action="store_true", help="correctness only; bypass unavailable sandbox /proc, no performance claims")
     parser.add_argument("--io-delay-ms", type=int, default=0)
     parser.add_argument("--confirm-seconds", type=float, default=15)
     parser.add_argument("--confirm-rounds", type=int, default=3)
+    parser.add_argument("--max-cell-clients", type=int, default=512, help="Leave headroom under celld's 64 in-flight requests per cell")
     parser.add_argument("--baseline-ref", default="9e26fa34c5e5611801d3203507e1c750d6e8a60d")
     args = parser.parse_args()
     import re
@@ -149,7 +150,7 @@ def main():
         phase = "screen" if round_ < args.rounds else "confirm"
         duration = args.seconds if phase == "screen" else args.confirm_seconds
         cases = [(mode,density,c) for mode in args.modes for density in args.densities
-                 if mode not in {"bare-stateless", "python-stateless"} or density == args.densities[0] for c in args.clients]
+                 if mode not in {"bare-stateless", "python-stateless"} or density == args.densities[0] for c in args.clients if mode in {"bare-stateless", "python-stateless"} or c <= args.max_cell_clients]
         if phase == "confirm":
             groups = {(s["mode"],s["density"]) for s in report["samples"]}
             cases = []
