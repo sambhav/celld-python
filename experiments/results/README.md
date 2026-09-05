@@ -32,6 +32,51 @@ and [50 ms I/O](2026-09-05-stateless-io50.json) JSON files retain all screening
 points, confirmation ranges, CPU, RSS, and latency. Peak capacity builds queues; it is not a low-latency SLO.
 
 
+## Shipped SDK with durable replay
+
+[Paired comparison](2026-09-05-throughput-comparison.md) · [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988965087) · SDK `55aaf8687572981f0560cd8b565cd75d0098a408`
+
+All three jobs completed successfully with zero failed or replayed measured calls.
+Cell-based cases leave admission headroom: at most 512 clients across 16 cells.
+The per-isolate cell packing limit is 2. Each comparison within a row uses the same
+runner and native binary; results are medians of three 15-second confirmations.
+
+| Workload | Before metadata caching req/s | Current SDK req/s | Cache gain | Direct stateless prototype req/s | Prototype p95 ms at peak |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hello world | 700 | 980 | 40% | 3,787 | 84.8 |
+| Quote, 10 ms upstream | 415 | 491 | 18% | 1,962 | 590.1 |
+| Quote, 50 ms upstream | 242 | 248 | 2.5% | 1,688 | 183.8 |
+
+The hello and 50 ms jobs use AMD EPYC 7763; the 10 ms job uses AMD EPYC 9V74.
+Every job has two physical/four logical CPUs, shared with the Go driver/upstream.
+The separate Intel 10 ms run above is faster; CPU model differences matter even
+on the same GitHub runner label. Do not pool results across these machines.
+
+The dispatcher now reuses static input/output validators and parameter/dependency
+metadata. It still validates each invocation, copies validated mutable defaults,
+and creates/cleans up dependency values and context per call. All 38 framework
+tests and four actual-celld tests pass. I/O serialization and durability dominate
+the 50 ms workload, so metadata caching helps little there. The stateless prototype
+allows overlapping requests and removes cell ownership/routing and replay writes.
+
+Peak throughput can require undesirable queues: the second run's 10 ms stateless
+case selected 1,024 clients, producing a 590 ms p95. The full raw [hello](2026-09-05-throughput-hello.json),
+[10 ms](2026-09-05-throughput-io10.json), and [50 ms](2026-09-05-throughput-io50.json)
+reports retain lower-concurrency screens for evaluating that tradeoff.
+
+Durable rates are **short-window capacities**: the default retains 4,096 receipts
+per cell for 24 hours, or 65,536 across 16 stateless slots, after which new calls
+are refused until receipts expire. The benchmark does not change that bound. The
+experimental direct stateless path has no durable replay/receipt quota.
+
+A [separate confirmed hello packing sweep](2026-09-05-throughput-packing-hello.json)
+measures the current durable SDK at 609 req/s with packing limit 32 and 993 req/s
+with limit 2 on the same AMD EPYC 7763 runner. Those settings have different
+screen-selected client counts; this compares tuned capacities, not a fixed-load
+latency experiment. The corresponding 50 ms exploratory sweep failed confirmation
+at the exact per-cell admission ceiling and is excluded from reliable capacity
+claims; the successful bounded comparison above replaces it.
+
 ## Native packing improvement
 
 [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33981405520) · source `2edc509b86de54574eadc92cd7e56926a61f47d3` · [summary JSON](2026-09-05-packing.json)

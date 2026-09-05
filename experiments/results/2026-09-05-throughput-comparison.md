@@ -4,33 +4,36 @@ Each row is the median of three independent confirmation samples at the best scr
 
 ## Hello world
 
-CPU: AMD EPYC 7763 64-Core Processor. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988408853). SDK revision `96059cdbf4fd413be622818bfb168280f5443dee`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
+CPU: AMD EPYC 7763 64-Core Processor. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988965087). SDK revision `55aaf8687572981f0560cd8b565cd75d0098a408`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
 
 | Mode | Packing limit | Clients | Requests/sec | Min–max | p50 ms | p95 ms | p99 ms | celld CPU cores | RSS MiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| bare-stateless | — | 256 | 20739.8 | 20716.5–20985.5 | 11.05 | 25.85 | 33.57 | 2.36 | 245.4 |
-| python-concurrent | 2 | 64 | 2779.5 | 2733.6–2782.9 | 22.42 | 32.61 | 39.95 | 3.57 | 1753.3 |
-| python-stateless | — | 256 | 3882.9 | 3844.9–3889.9 | 64.59 | 82.48 | 97.31 | 3.48 | 741.3 |
+| bare-stateless | — | 256 | 20105.7 | 20018.9–20762.6 | 11.37 | 26.65 | 35.30 | 2.33 | 236.4 |
+| baseline-durable | 2 | 64 | 700.0 | 691.1–736.1 | 46.60 | 289.69 | 678.92 | 3.31 | 1640.4 |
+| python-durable | 2 | 256 | 979.5 | 968.3–1009.7 | 174.36 | 766.96 | 1251.25 | 3.53 | 1721.9 |
+| python-stateless | — | 256 | 3786.7 | 3750.8–3792.8 | 66.16 | 84.82 | 100.56 | 3.47 | 739.5 |
 
 ## Quote service, 10 ms upstream delay
 
-CPU: Intel(R) Xeon(R) 6973P-C. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988408853). SDK revision `96059cdbf4fd413be622818bfb168280f5443dee`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
+CPU: AMD EPYC 9V74 80-Core Processor. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988965087). SDK revision `55aaf8687572981f0560cd8b565cd75d0098a408`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
 
 | Mode | Packing limit | Clients | Requests/sec | Min–max | p50 ms | p95 ms | p99 ms | celld CPU cores | RSS MiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| bare-stateless | — | 256 | 15497.3 | 15382.6–15581.6 | 16.02 | 21.76 | 25.86 | 2.44 | 309.8 |
-| python-concurrent | 2 | 256 | 2123.6 | 2093.3–2146.8 | 118.91 | 158.03 | 182.44 | 3.53 | 1820.4 |
-| python-stateless | — | 256 | 3014.9 | 2987.7–3095.4 | 83.12 | 104.96 | 121.52 | 3.40 | 854.8 |
+| bare-stateless | — | 256 | 8731.7 | 8507.5–9157.6 | 28.46 | 41.18 | 49.69 | 2.51 | 259.9 |
+| baseline-durable | 2 | 16 | 415.2 | 396.3–417.6 | 34.73 | 61.47 | 100.28 | 3.12 | 1683.7 |
+| python-durable | 2 | 16 | 491.4 | 479.1–492.0 | 28.89 | 48.91 | 96.40 | 2.76 | 1700.3 |
+| python-stateless | — | 1024 | 1961.8 | 1934.5–1962.3 | 521.67 | 590.13 | 640.42 | 3.36 | 896.5 |
 
 ## Quote service, 50 ms upstream delay
 
-CPU: AMD EPYC 7763 64-Core Processor. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988408853). SDK revision `96059cdbf4fd413be622818bfb168280f5443dee`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
+CPU: AMD EPYC 7763 64-Core Processor. [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988965087). SDK revision `55aaf8687572981f0560cd8b565cd75d0098a408`; native revision `1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec`.
 
 | Mode | Packing limit | Clients | Requests/sec | Min–max | p50 ms | p95 ms | p99 ms | celld CPU cores | RSS MiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| bare-stateless | — | 1024 | 6484.4 | 6429.3–6584.5 | 155.32 | 192.92 | 218.73 | 2.51 | 356.7 |
-| python-concurrent | 2 | 256 | 1297.3 | 1296.8–1314.3 | 194.57 | 251.79 | 281.33 | 3.45 | 1797.6 |
-| python-stateless | — | 256 | 1736.8 | 1728.9–1745.3 | 145.18 | 174.80 | 202.12 | 3.34 | 807.4 |
+| bare-stateless | — | 512 | 6830.4 | 6718.8–6853.5 | 73.52 | 90.90 | 103.48 | 2.53 | 304.6 |
+| baseline-durable | 2 | 64 | 241.7 | 241.6–242.5 | 260.11 | 450.76 | 585.99 | 1.93 | 1604.9 |
+| python-durable | 2 | 64 | 247.7 | 247.6–248.6 | 254.47 | 385.69 | 466.38 | 1.56 | 1606.8 |
+| python-stateless | — | 256 | 1687.7 | 1668.3–1704.3 | 148.83 | 183.75 | 204.07 | 3.34 | 799.4 |
 
 `baseline-*` embeds the dispatcher before validator/DI metadata caching. `python-durable` is the shipped SDK with caching and its replay guarantees. `python-concurrent` is a benchmark-only stateless experiment that removes receipts and the per-call concurrency gate. `python-stateless` runs Python directly in the native stateless isolate pool, with zero Python cells and no durable replay. Cell-based modes use 16 cells. `bare-stateless` executes JavaScript directly in celld. The concurrent experiment does not provide durable replay and is not a public SDK mode.
 
