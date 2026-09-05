@@ -6,8 +6,9 @@ proxies, awaits invocations, and checks replies. It works on stock celld 0.4.0.
 This does **not** statically link CPython into Rust or remove Pyodide's JS loader.
 
 The adoption criterion is a measured speed improvement or a simpler runtime.
-Moving a JS call behind a Rust binding is not sufficient by itself. Results and
-the resulting decision will be recorded here after the GitHub benchmark runs.
+The paired GitHub measurements show no meaningful latency improvement, so this
+bridge stays experimental. See [measured results and limits](../results) for
+the worker-scaling, lifecycle and memory evidence.
 
 ## Reproduce
 

@@ -9,13 +9,19 @@ from .codegen import generate
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="pycelld")
+    parser = argparse.ArgumentParser(prog="pycelld", description="Typed Python functions and durable state on celld.")
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Create a hello-world worker")
     init.add_argument("directory", type=Path)
-    for name in ("lock", "build", "dev", "deploy"):
-        command = commands.add_parser(name)
-        command.add_argument("project", nargs="?", default=".", type=Path)
+    descriptions = {
+        "lock": "Pin and fetch the runtime and declared Python packages",
+        "build": "Bundle workers, packages, schemas, and typed clients",
+        "dev": "Run locally and reload when Python sources change",
+        "deploy": "Build and deploy using the native celld CLI",
+    }
+    for name, description in descriptions.items():
+        command = commands.add_parser(name, help=description, description=description)
+        command.add_argument("project", nargs="?", default=".", type=Path, help="Project directory or fleet TOML (default: current directory)")
         if name != "lock":
             command.add_argument("--host", type=Path, help="ES module exporting resolveContext for your platform")
         if name == "build":

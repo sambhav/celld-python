@@ -27,7 +27,8 @@ injection, context, retries, and keyed state. Your platform owns authentication,
 tenancy, quotas, and deployment policy. There is no account registry or auth database.
 
 The distribution and import are named `celld`; the Python CLI is `pycelld`,
-so it can coexist with the native `celld` executable. The first PyPI release is
+so it can coexist with the native `celld` executable. `python -m celld` runs the
+same Python CLI when the scripts directory is not on PATH. The first PyPI release is
 being prepared; install from this checkout until it is published.
 
 ## Start a worker
@@ -302,6 +303,8 @@ host machines. Add nodes against the same bucket to add fleet capacity. Calls
 for the same state key remain serialized; independent keys can run concurrently.
 More keys do not guarantee more CPU parallelism: celld can place cells in a shared
 V8 isolate. See the measured [runtime experiments](experiments/rust-pyodide).
+The [results](experiments/results) distinguish worker residency from process
+memory: idle eviction does not currently return RSS close to its startup baseline.
 
 To embed your platform policy, pass a self-contained ES module with
 `--host platform.mjs` to `build`, `dev` or `deploy`:

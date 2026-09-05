@@ -1,0 +1,498 @@
+{
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.29\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                2 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "extra_artifact_bytes": {
+    "rust_runtime.d.ts": 3313,
+    "rust_runtime.js": 26775,
+    "rust_runtime_bg.wasm": 230830,
+    "rust_runtime_bg.wasm.d.ts": 1742
+  },
+  "head_sha": "eb74423ad519ef874c1721724ddfdcd8fc0b0649",
+  "idle": [
+    {
+      "active_rss_bytes": 506073088,
+      "backend": "javascript",
+      "first_request_ms": 3645.251,
+      "idle_wait_ms": 2400.905,
+      "inactive_rss_bytes": 502411264,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4209.948,
+      "wake_request_ms": 3014.483,
+      "workload": "hello"
+    },
+    {
+      "active_rss_bytes": 563769344,
+      "backend": "javascript",
+      "first_request_ms": 4540.642,
+      "idle_wait_ms": 2510.116,
+      "inactive_rss_bytes": 557735936,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4207.539,
+      "wake_request_ms": 4050.068,
+      "workload": "numpy"
+    },
+    {
+      "active_rss_bytes": 514609152,
+      "backend": "javascript",
+      "first_request_ms": 3601.26,
+      "idle_wait_ms": 2458.845,
+      "inactive_rss_bytes": 512626688,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4207.647,
+      "wake_request_ms": 3018.858,
+      "workload": "counter"
+    },
+    {
+      "active_rss_bytes": 505528320,
+      "backend": "rust",
+      "first_request_ms": 3542.839,
+      "idle_wait_ms": 2506.292,
+      "inactive_rss_bytes": 493563904,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 331.45,
+      "wake_request_ms": 2972.652,
+      "workload": "hello"
+    },
+    {
+      "active_rss_bytes": 558391296,
+      "backend": "rust",
+      "first_request_ms": 4546.084,
+      "idle_wait_ms": 2506.43,
+      "inactive_rss_bytes": 549376000,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4211.864,
+      "wake_request_ms": 3926.805,
+      "workload": "numpy"
+    },
+    {
+      "active_rss_bytes": 510017536,
+      "backend": "rust",
+      "first_request_ms": 3537.617,
+      "idle_wait_ms": 2355.724,
+      "inactive_rss_bytes": 500936704,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 339.141,
+      "wake_request_ms": 2988.101,
+      "workload": "counter"
+    }
+  ],
+  "latency": {
+    "javascript": {
+      "counter": {
+        "cold": {
+          "median_ms": 3023.237,
+          "n": 4,
+          "p95_ms": 3123.292
+        },
+        "warm": {
+          "median_ms": 10.621,
+          "n": 400,
+          "p95_ms": 12.147
+        }
+      },
+      "hello": {
+        "cold": {
+          "median_ms": 3776.302,
+          "n": 4,
+          "p95_ms": 3934.086
+        },
+        "warm": {
+          "median_ms": 10.106,
+          "n": 400,
+          "p95_ms": 12.482
+        }
+      },
+      "numpy": {
+        "cold": {
+          "median_ms": 4108.85,
+          "n": 4,
+          "p95_ms": 4154.518
+        },
+        "warm": {
+          "median_ms": 10.586,
+          "n": 400,
+          "p95_ms": 12.318
+        }
+      }
+    },
+    "rust": {
+      "counter": {
+        "cold": {
+          "median_ms": 2989.534,
+          "n": 4,
+          "p95_ms": 3085.976
+        },
+        "warm": {
+          "median_ms": 10.387,
+          "n": 400,
+          "p95_ms": 12.097
+        }
+      },
+      "hello": {
+        "cold": {
+          "median_ms": 3680.709,
+          "n": 4,
+          "p95_ms": 3839.99
+        },
+        "warm": {
+          "median_ms": 10.243,
+          "n": 400,
+          "p95_ms": 12.885
+        }
+      },
+      "numpy": {
+        "cold": {
+          "median_ms": 4000.845,
+          "n": 4,
+          "p95_ms": 4270.528
+        },
+        "warm": {
+          "median_ms": 10.33,
+          "n": 400,
+          "p95_ms": 12.357
+        }
+      }
+    }
+  },
+  "memory": "               total        used        free      shared  buff/cache   available\nMem:     16766414848  1160343552 12257120256    48893952  3747983360 15606071296\nSwap:     3221221376           0  3221221376\n",
+  "reload": [
+    {
+      "backend": "javascript",
+      "edit_to_ready_ms": 4674.29,
+      "edit_to_result_ms": 8383.495,
+      "first_new_request_ms": 3583.844,
+      "initial_first_request_ms": 3595.532,
+      "initial_ready_ms": 8435.646,
+      "n": 3
+    },
+    {
+      "backend": "rust",
+      "edit_to_ready_ms": 8654.354,
+      "edit_to_result_ms": 12166.869,
+      "first_new_request_ms": 3650.856,
+      "initial_first_request_ms": 3725.391,
+      "initial_ready_ms": 5200.793,
+      "n": 3
+    }
+  ],
+  "run_url": "https://github.com/sambhav/celld-python/actions/runs/33978240607",
+  "scaling": [
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.717,
+      "median_rps": 96.31513178187642,
+      "median_rss_bytes": 716161024,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "small"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.9148498470753854,
+      "median_cpu_cores": 1.104,
+      "median_rps": 176.22776716339047,
+      "median_rss_bytes": 765460480,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.8296996941507708,
+      "workload": "small"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.7818033802827133,
+      "median_cpu_cores": 1.747,
+      "median_rps": 301.1979823977839,
+      "median_rss_bytes": 862597120,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 3.1272135211308534,
+      "workload": "small"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.5435822784500097,
+      "median_cpu_cores": 2.184,
+      "median_rps": 418.8415902656426,
+      "median_rss_bytes": 1019064320,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 4.348658227600078,
+      "workload": "small"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.739,
+      "median_rps": 100.57720455072297,
+      "median_rss_bytes": 698118144,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "small"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.8179294538399425,
+      "median_cpu_cores": 1.117,
+      "median_rps": 164.53011597384204,
+      "median_rss_bytes": 726835200,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.635858907679885,
+      "workload": "small"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.4190018718410352,
+      "median_cpu_cores": 1.04,
+      "median_rps": 168.56814788516644,
+      "median_rss_bytes": 718299136,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.6760074873641408,
+      "workload": "small"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.21123680645193882,
+      "median_cpu_cores": 1.136,
+      "median_rps": 169.96485992926503,
+      "median_rss_bytes": 693514240,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.6898944516155106,
+      "workload": "small"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.985,
+      "median_rps": 35.71279054823589,
+      "median_rss_bytes": 682250240,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "cpu"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5978040129925849,
+      "median_cpu_cores": 1.158,
+      "median_rps": 42.69849900979814,
+      "median_rss_bytes": 797900800,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.1956080259851698,
+      "workload": "cpu"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.3316986541152156,
+      "median_cpu_cores": 1.317,
+      "median_rps": 47.38353823819374,
+      "median_rss_bytes": 889360384,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.3267946164608624,
+      "workload": "cpu"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.17033147330163168,
+      "median_cpu_cores": 1.342,
+      "median_rps": 48.66409783834884,
+      "median_rss_bytes": 1012338688,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.3626517864130534,
+      "workload": "cpu"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.977,
+      "median_rps": 35.29198485566397,
+      "median_rss_bytes": 788709376,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "cpu"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5831893710408911,
+      "median_cpu_cores": 1.12,
+      "median_rps": 41.16382090151865,
+      "median_rss_bytes": 782069760,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.1663787420817822,
+      "workload": "cpu"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.28944556255833265,
+      "median_cpu_cores": 1.141,
+      "median_rps": 40.86043364139125,
+      "median_rss_bytes": 753864704,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.1577822502333306,
+      "workload": "cpu"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.14565820191248882,
+      "median_cpu_cores": 1.225,
+      "median_rps": 41.1245364479904,
+      "median_rss_bytes": 747245568,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.1652656152999106,
+      "workload": "cpu"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.234,
+      "median_rps": 14.715371030967377,
+      "median_rss_bytes": 774770688,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "waiting"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 1.0220361340713346,
+      "median_cpu_cores": 0.324,
+      "median_rps": 30.079281839830415,
+      "median_rss_bytes": 817684480,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 2.0440722681426693,
+      "workload": "waiting"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 1.0038092127366993,
+      "median_cpu_cores": 0.496,
+      "median_rps": 59.08570003889518,
+      "median_rss_bytes": 888123392,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 4.015236850946797,
+      "workload": "waiting"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.987400420168011,
+      "median_cpu_cores": 0.871,
+      "median_rps": 116.23970831124292,
+      "median_rss_bytes": 1062592512,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 7.899203361344088,
+      "workload": "waiting"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.234,
+      "median_rps": 14.827915271855261,
+      "median_rss_bytes": 787058688,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "waiting"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5339165700548987,
+      "median_cpu_cores": 0.242,
+      "median_rps": 15.833739326027224,
+      "median_rss_bytes": 777089024,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0678331401097974,
+      "workload": "waiting"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.26666476317650906,
+      "median_cpu_cores": 0.309,
+      "median_rps": 15.8163300574825,
+      "median_rss_bytes": 762040320,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0666590527060362,
+      "workload": "waiting"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.13496345282976188,
+      "median_cpu_cores": 0.289,
+      "median_rps": 16.009813146853947,
+      "median_rss_bytes": 739614720,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.079707622638095,
+      "workload": "waiting"
+    }
+  ],
+  "scaling_config": {
+    "celld": "0.4.0",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_count": 4,
+    "stateless_isolates": "celld default (available CPUs)",
+    "store": "local SQLite development object store",
+    "v8_heap_limit_mb": 256
+  },
+  "startup": {
+    "javascript": {
+      "median_ms": 4213.77,
+      "n": 4
+    },
+    "rust": {
+      "median_ms": 4213.888,
+      "n": 4
+    }
+  },
+  "tested_sha": "790cc352a3e60cb687b1a363bbf0a2444ef310dc"
+}
