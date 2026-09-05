@@ -33,7 +33,7 @@ def small(key: str, state: State[Counter]) -> dict:
     return {"total":state.value.total,"value":0}
 @app.function(key="key")
 def cpu(key: str, state: State[Counter]) -> dict:
-    value = sum(i*i for i in range(100000))
+    value = sum(i*i for i in range(1000000))
     state.value.total += 1
     return {"total":state.value.total,"value":value}
 @app.function(key="key")
@@ -59,50 +59,56 @@ def evict(running):
 
 
 def scenario(running, workload, clients, mode, seconds):
+    nodes = running if isinstance(running, list) else [running]
     prefix = uuid.uuid4().hex
     keys = [f"{prefix}-{0 if mode == 'shared' else i}" for i in range(clients)]
     unique_keys = set(keys)
-    expected = 100000 * 99999 * 199999 // 6 if workload == "cpu" else 0
-    for key in unique_keys:
-        _, value = timed(running.port, "/" + workload, {"key":key}, uuid.uuid4().hex)
-        assert value == {"total":1,"value":expected}
+    expected = 1000000 * 999999 * 1999999 // 6 if workload == "cpu" else 0
+    placements = dict(zip(keys, [nodes[i % len(nodes)].port for i in range(clients)]))
+    # Several untimed calls warm Python specialization and the persistence path.
+    for key, port in placements.items():
+        for count in range(1, 5):
+            _, value = timed(port, "/" + workload, {"key":key}, uuid.uuid4().hex)
+            assert value == {"total":count,"value":expected}
     barrier = threading.Barrier(clients + 1)
     stop_at = [0.0]
 
-    def drive(key):
+    def drive(key, port):
         observations = []
-        barrier.wait()
+        barrier.wait(timeout=30)
         while time.perf_counter() < stop_at[0]:
-            elapsed, value = timed(running.port, "/" + workload, {"key":key}, uuid.uuid4().hex)
+            elapsed, value = timed(port, "/" + workload, {"key":key}, uuid.uuid4().hex)
             assert value["value"] == expected
             observations.append((elapsed, value["total"], key))
         return observations
 
+    # Sampling errors must not leave worker threads stuck at the start barrier.
+    cpu_start = sum(cpu_seconds(n.process.pid) for n in nodes)
     with ThreadPoolExecutor(max_workers=clients) as pool:
-        futures = [pool.submit(drive, key) for key in keys]
-        cpu_start = cpu_seconds(running.process.pid)
+        futures = [pool.submit(drive, key, nodes[i % len(nodes)].port) for i, key in enumerate(keys)]
         start = time.perf_counter()
         stop_at[0] = start + seconds
-        barrier.wait()
+        barrier.wait(timeout=30)
         observations = [item for future in futures for item in future.result()]
         elapsed = time.perf_counter() - start
-        cpu = cpu_seconds(running.process.pid) - cpu_start
+        cpu = sum(cpu_seconds(n.process.pid) for n in nodes) - cpu_start
     # Every result must be a distinct committed increment for its key.
     for key in unique_keys:
         totals = sorted(total for _, total, k in observations if k == key)
-        assert totals == list(range(2, len(totals) + 2)), (key, totals)
-    state = running.state()
+        assert totals == list(range(5, len(totals) + 5)), (key, totals)
+    states = [n.state() for n in nodes]
     return {"workload":workload,"clients":clients,"mode":mode,"worker_keys":len(unique_keys),
             "requests":len(observations),"elapsed_seconds":elapsed,"rps":len(observations)/elapsed,
             "latency":summarize([latency for latency, _, _ in observations]),
             "latencies_ms":[latency for latency, _, _ in observations],
             "process_cpu_seconds":cpu,"cpu_cores_used":cpu/elapsed,
-            "rss_bytes":state["rss_bytes"],"resident_python_cells":len([s for s in state["residents"] if s.startswith("PythonCell:")])}
+            "rss_bytes":sum(state["rss_bytes"] for state in states),
+            "resident_python_cells":sum(len([s for s in state["residents"] if s.startswith("PythonCell:")]) for state in states)}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seconds", type=float, default=3)
+    parser.add_argument("--seconds", type=float, default=10)
     parser.add_argument("--rounds", type=int, default=3)
     args = parser.parse_args()
     if args.seconds < 1 or args.rounds < 1:

@@ -21,7 +21,8 @@ celld-py lock examples/fleet.toml
 CELLD_E2E=1 pytest experiments/rust-pyodide/test_runtime.py -q
 python experiments/rust-pyodide/compare.py --rounds 4 --calls 100
 python experiments/rust-pyodide/lifecycle.py --rounds 3
-python experiments/rust-pyodide/scaling.py --seconds 3 --rounds 3
+python experiments/rust-pyodide/scaling.py --seconds 10 --rounds 3
+python experiments/rust-pyodide/fleet_scaling.py --seconds 10 --rounds 3
 ```
 
 Both backends run sequentially on the same GitHub runner, alternating order.
@@ -53,7 +54,9 @@ not an in-place production rollout measurement.
 
 The scaling sweep warms workers before timing, alternates concurrency order,
 and measures 1/2/4/8 clients with independent keys and one shared-key control.
-It includes small state mutations, CPU work and a 50 ms async wait. All responses
+It includes small state mutations, a million-iteration Python CPU calculation,
+and a 50 ms async wait. Four untimed calls per key precede each 10-second sample.
+All responses
 must be successful, with no replay or lost/duplicated state increments. Samples
 include throughput, latency, celld process CPU and RSS. Cells are evicted between
 scenarios so earlier workers do not accumulate and change placement. This runs
@@ -61,3 +64,11 @@ on one fixed CPU allocation: it tests worker concurrency, not adding machines.
 Current runs use celld's default stateless isolate limit (available CPUs), with
 a 256 MiB V8 heap limit per isolate. Runs before this correction explicitly used
 one stateless isolate and must not be presented as default-pool scaling results.
+
+The node sweep holds eight clients and eight independent keys constant while
+varying celld process count (1/2/4). Each cohort gets a fresh development object
+store shared by its nodes, and separate local replication directories. Accessing
+one key through every node must produce consecutive increments before timing.
+The same runner CPU allocation is shared by all processes; this is not a
+multi-machine benchmark or an S3 latency claim. The shorter `--check --nodes 2
+--rounds 1` mode verifies peer routing without collecting performance samples.

@@ -22,12 +22,16 @@ class RunningNode:
 
 
 @contextmanager
-def measured_node(project, log_path, *, idle_seconds=None):
+def measured_node(project, log_path, *, idle_seconds=None, node_suffix=None):
     port = free_port()
     env = environment()
     env.update(CELLD_INTERNAL_DEV_STORE=str(project / ".celld/dev/objects.sqlite3"),
                CELLD_WATCH=str(project / ".celld/dev/runtime"),
                CELLD_NODE="dev-" + hashlib.sha256(str(project).encode()).hexdigest()[:12], RUST_LOG="info")
+    if node_suffix is not None:
+        # Nodes share the object store, but never their local replication files.
+        env["CELLD_NODE"] += "-" + node_suffix
+        env["CELLD_WATCH"] = str(project / ".celld/dev" / ("runtime-" + node_suffix))
     if idle_seconds is not None:
         env["CELLD_IDLE_EVICT_S"] = str(idle_seconds)
     with log_path.open("w") as log:

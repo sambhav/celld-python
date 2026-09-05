@@ -16,12 +16,14 @@ def main():
     comparison = json.loads((directory / "comparison.json").read_text())
     lifecycle = json.loads((directory / "lifecycle.json").read_text())
     scaling = json.loads((directory / "scaling.json").read_text())
+    fleet = json.loads((directory / "fleet_scaling.json").read_text())
     report = {"run_url":f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', 'sambhav/celld-python')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}",
               "head_sha":os.environ.get("BENCH_HEAD_SHA", ""), "tested_sha":os.environ.get("GITHUB_SHA", ""),
               "cpu":(directory / "cpu.txt").read_text(), "memory":(directory / "memory.txt").read_text(),
               "latency":comparison["summary"], "extra_artifact_bytes":comparison["extra_artifact_bytes"],
               "startup":{}, "idle":[], "reload":[], "scaling":[],
-              "scaling_config":{k:v for k,v in scaling.items() if k not in ("samples", "summary")}}
+              "scaling_config":{k:v for k,v in scaling.items() if k not in ("samples", "summary")},
+              "fleet_scaling":fleet["summary"]}
     for backend in ("javascript", "rust"):
         rows = [r for r in comparison["startups"] if r["backend"] == backend]
         report["startup"][backend] = {"n":len(rows),"median_ms":median(rows,"startup_ms")}
@@ -66,6 +68,11 @@ def main():
         "| Work | Key mode | Clients | Requests/sec | Speedup | Efficiency | CPU cores used |", "|---|---|---:|---:|---:|---:|---:|"]
     for r in report["scaling"]:
         lines.append(f"| {r['workload']} | {r['mode']} | {r['clients']} | {r['median_rps']:.1f} | {r['speedup']:.2f}× | {r['linear_efficiency']:.0%} | {r['median_cpu_cores']:.2f} |")
+    lines += ["", "## Node scaling on the same host", "",
+        "Eight clients and eight independent CPU workers, spread over 1/2/4 celld processes sharing one object store. Host CPU is unchanged; not a multi-machine or remote S3 result.", "",
+        "| Nodes | Requests/sec | Speedup | CPU cores used | RSS (MiB) |", "|---:|---:|---:|---:|---:|"]
+    for r in report["fleet_scaling"]:
+        lines.append(f"| {r['nodes']} | {r['median_rps']:.1f} | {r['speedup']:.2f}× | {r['cpu_cores_used']:.2f} | {r['rss_bytes']/2**20:.1f} |")
     lines += ["", "## Runner", "", "```text", report["cpu"], report["memory"], "```", ""]
     markdown = "\n".join(lines)
     (directory / "report.md").write_text(markdown)

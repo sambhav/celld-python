@@ -11,7 +11,7 @@ permissions:
 jobs:
   compare:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,7 +66,9 @@ jobs:
       - name: Measure idle eviction, state recovery, and source updates
         run: python experiments/rust-pyodide/lifecycle.py --rounds 3
       - name: Measure worker scaling and shared-key contention
-        run: python experiments/rust-pyodide/scaling.py --seconds 3 --rounds 3
+        run: python experiments/rust-pyodide/scaling.py --seconds 10 --rounds 3
+      - name: Measure node scaling on the same CPU allocation
+        run: python experiments/rust-pyodide/fleet_scaling.py --seconds 10 --rounds 3
       - name: Publish measured results
         env:
           BENCH_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
