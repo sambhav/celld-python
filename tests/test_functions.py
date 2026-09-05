@@ -95,3 +95,22 @@ def test_ambiguous_function_field_aliases_fail_at_build_time():
 
     with pytest.raises(ValueError, match="Python names"):
         app.schema()
+
+
+class AliasedState(BaseModel):
+    count: int = Field(default=0, validation_alias="seed", serialization_alias="total")
+
+
+async def test_state_round_trips_python_fields_independently_of_wire_aliases():
+    app = Worker()
+
+    @app.function(key="key")
+    def increment(key: str, state: State[AliasedState]) -> AliasedState:
+        state.value.count += 1
+        return state.value
+
+    state = None
+    for value in (1, 2):
+        response, state = await app.dispatch(Request("POST", "/increment", body=b'{"key":"a"}'), state)
+        assert json.loads(state) == {"count": value}
+        assert json.loads(response.body) == {"result": {"total": value}}

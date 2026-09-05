@@ -94,7 +94,9 @@ Clients preserve Pydantic model shapes, model-field aliases, common constraints,
 lists and literals. Custom Python validators stay on the server. Unsupported
 structural schemas fail generation explicitly. Injected dependencies and state
 never become client arguments. Function argument names are the public contract;
-put aliased fields in a Pydantic model. Regenerate a saved contract with:
+put aliased fields in a Pydantic model. Names colliding with client helpers
+(such as `call`) receive a trailing underscore in generated methods.
+Regenerate a saved contract with:
 
 ```sh
 celld-py client hello/.celld-python/build/hello.schema.json --out hello_client.py

@@ -70,7 +70,7 @@ class Client:
 
     @staticmethod
     def _encode_context(context):
-        value = _JSON.dump_python(context if context is not None else {}, mode="json")
+        value = _JSON.dump_python(context if context is not None else {}, mode="json", by_alias=True)
         if not isinstance(value, dict):
             raise ValueError("Context must be a model or object")
         result = json.dumps(value, separators=(",", ":"), ensure_ascii=True)
@@ -95,7 +95,7 @@ class Client:
     def call(self, function: str, /, **arguments):
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", function):
             raise ValueError("Invalid function name")
-        data = _JSON.dump_json(arguments)
+        data = _JSON.dump_json(arguments, by_alias=True)
         if len(data) > _MAX_RESPONSE:
             raise ValueError("Arguments exceed 1 MiB")
         call_id = self._call_id or str(uuid.uuid4())

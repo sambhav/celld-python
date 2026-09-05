@@ -159,10 +159,14 @@ def generate(schema: dict, output: Path):
     generator = Generator()
     methods = []
     contexts = []
+    used_methods = {"call", "with_context", "with_call_id", "endpoint", "timeout", "retries"}
     for name, spec in schema["functions"].items():
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", name):
             raise ValueError(f"Invalid exported function name: {name}")
-        method = name + "_" if name in {"call", "with_context", "with_call_id", "endpoint", "timeout", "retries"} else name
+        method = name
+        while method in used_methods:
+            method += "_"
+        used_methods.add(method)
         arguments = spec["arguments"]
         refs = arguments.get("$defs", {})
         input_model = generator.model(arguments, name.title() + "Arguments", refs)
@@ -217,9 +221,9 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, TypeAdapter
 from celld_python import ClientInfo, RetryPolicy
 from celld_python.client import Client as _Client, AsyncClient as _AsyncClient
 
-_UNSET = Any  # Private sentinel; omitted arguments keep their server defaults.
+_UNSET: Any = object()  # Omitted arguments keep their server defaults.
 
-'''.replace("_UNSET = Any", "_UNSET = object()") + model_source + "\n\n\n" + "\n\n\n".join(classes) + "\n"
+''' + model_source + "\n\n\n" + "\n\n\n".join(classes) + "\n"
     compile(source, str(output), "exec")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(source)

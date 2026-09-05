@@ -84,3 +84,34 @@ def test_unsupported_structures_fail_clearly(tmp_path):
     schema["functions"]["save"]["returns"] = {"allOf": [{"type": "object"}]}
     with pytest.raises(ValueError, match="Unsupported schema construct"):
         generate(schema, tmp_path / "no.py")
+
+
+def test_generated_names_cannot_overwrite_transport_or_another_function(tmp_path):
+    spec = {"arguments": {"type": "object", "properties": {}, "additionalProperties": False},
+            "returns": {"type": "string"}, "context": None}
+    module = load(generate({"version": 1, "functions": {"call": spec, "call_": spec}}, tmp_path / "names.py"))
+    client = module.Client("http://localhost")
+    client.call = lambda function, **arguments: function
+    assert client.call_() == "call"
+    assert client.call__() == "call_"
+
+
+class AliasedPerson(BaseModel):
+    full_name: str = Field(validation_alias="inputName", serialization_alias="outputName")
+
+
+async def test_generated_result_uses_the_serialized_model_contract(tmp_path):
+    from celld_python import Request
+    app = Worker()
+
+    @app.function
+    def person() -> AliasedPerson:
+        return AliasedPerson(inputName="Sam")
+
+    schema = json.loads(app.schema())
+    assert "outputName" in schema["functions"]["person"]["returns"]["properties"]
+    module = load(generate(schema, tmp_path / "alias_client.py"))
+    response, _ = await app.dispatch(Request("POST", "/person", body=b'{}'))
+    client = module.Client("http://localhost")
+    client.call = lambda function, **arguments: json.loads(response.body)["result"]
+    assert client.person().outputName == "Sam"

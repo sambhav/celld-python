@@ -103,7 +103,7 @@ class Response:
 
     @classmethod
     def json(cls, value: Any, status: int = 200) -> Response:
-        return cls(_JSON.dump_json(value), status, [("content-type", "application/json")])
+        return cls(_JSON.dump_json(value, by_alias=True), status, [("content-type", "application/json")])
 
 
 def _annotation(annotation):
@@ -265,7 +265,7 @@ class Worker:
             functions[route.operation] = dict(
                 description=inspect.getdoc(route.handler) or "",
                 arguments=arguments.model_json_schema(),
-                returns=TypeAdapter(get_type_hints(route.handler, include_extras=True).get("return", Any)).json_schema(),
+                returns=TypeAdapter(get_type_hints(route.handler, include_extras=True).get("return", Any)).json_schema(mode="serialization"),
                 context=route.context_model.model_json_schema() if route.context_model else None,
                 stateful=route.state_model is not None,
             )
@@ -388,7 +388,7 @@ class Worker:
                     route = self.match(req)
                     if route.state_model:
                         # Stored state validation failures are server errors, not bad requests.
-                        value = (route.state_model.model_validate_json(state_json)
+                        value = (route.state_model.model_validate_json(state_json, by_name=True)
                                  if state_json is not None else route.state_model())
                         state = State(value)
                     value = await resolve(route.handler)
@@ -406,7 +406,7 @@ class Worker:
                     nonlocal state
                     route = matched
                     if route.state_model:
-                        value = (route.state_model.model_validate_json(state_json)
+                        value = (route.state_model.model_validate_json(state_json, by_name=True)
                                  if state_json is not None else route.state_model())
                         state = State(value)
                     return await resolve(route.handler)
@@ -434,7 +434,7 @@ class Worker:
         if state is not None and response.status < 400:
             # Revalidate mutations, including nested values, before persisting.
             model = matched.state_model
-            committed = model.model_validate_json(_JSON.dump_json(state.value)).model_dump_json()
+            committed = model.model_validate_json(_JSON.dump_json(state.value, by_alias=False), by_name=True).model_dump_json(by_alias=False)
         return response, committed
 
     async def handle_wire(self, payload: str, state_json: str | None = None) -> str:
