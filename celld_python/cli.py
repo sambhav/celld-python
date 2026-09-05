@@ -11,6 +11,8 @@ from .codegen import generate
 def main():
     parser = argparse.ArgumentParser(prog="celld-py")
     commands = parser.add_subparsers(dest="command", required=True)
+    init = commands.add_parser("init", help="Create a hello-world worker")
+    init.add_argument("directory", type=Path)
     for name in ("lock", "build", "dev", "deploy"):
         command = commands.add_parser(name)
         command.add_argument("project", nargs="?", default=".", type=Path)
@@ -34,7 +36,11 @@ def main():
     if extra and args.command != "deploy":
         parser.error("Only deploy accepts forwarded celld arguments after --")
     try:
-        if args.command == "lock":
+        if args.command == "init":
+            from .scaffold import create
+            path = create(args.directory)
+            print(f"Created {path}. Next: celld-py lock {path}, then celld-py dev {path}")
+        elif args.command == "lock":
             print(lock(args.project))
         elif args.command == "client":
             print(generate(json.loads(args.schema.read_text()), args.out))

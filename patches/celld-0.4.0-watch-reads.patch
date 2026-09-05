@@ -1,0 +1,69 @@
+diff --git a/crates/celld/dev.rs b/crates/celld/dev.rs
+index 4059b7f..b563161 100644
+--- a/crates/celld/dev.rs
++++ b/crates/celld/dev.rs
+@@ -149,10 +149,11 @@ impl ProjectWatcher {
+                 .context("the project watcher stopped")?
+             {
+                 Ok(event)
+-                    if event
+-                        .paths
+-                        .iter()
+-                        .any(|path| !ignored_project_path(&self.project, path)) =>
++                    if project_event_changes_files(&event.kind)
++                        && event
++                            .paths
++                            .iter()
++                            .any(|path| !ignored_project_path(&self.project, path)) =>
+                 {
+                     return Ok(())
+                 }
+@@ -163,6 +164,12 @@ impl ProjectWatcher {
+     }
+ }
+ 
++// Reading a source file during bundling is observable on Linux. Treating
++// access/open/close-read events as edits causes an endless rebuild loop.
++fn project_event_changes_files(kind: &notify::EventKind) -> bool {
++    !matches!(kind, notify::EventKind::Access(_))
++}
++
+ fn ignored_project_path(project: &Path, path: &Path) -> bool {
+     const IGNORED_DIRECTORIES: &[&str] = &[
+         ".cache",
+@@ -619,3 +626,35 @@ async fn stop_child(child: &mut Child, internal: Option<&str>) {
+         let _ = child.kill().await;
+     }
+ }
++
++#[cfg(test)]
++mod watcher_tests {
++    use super::project_event_changes_files;
++    use notify::event::{AccessKind, AccessMode, CreateKind, ModifyKind, RemoveKind, RenameMode};
++    use notify::EventKind;
++
++    #[test]
++    fn source_reads_do_not_trigger_rebuilds() {
++        for kind in [
++            AccessKind::Any,
++            AccessKind::Read,
++            AccessKind::Open(AccessMode::Read),
++            AccessKind::Close(AccessMode::Read),
++        ] {
++            assert!(!project_event_changes_files(&EventKind::Access(kind)));
++        }
++    }
++
++    #[test]
++    fn edits_and_atomic_saves_still_trigger_rebuilds() {
++        for kind in [
++            EventKind::Any,
++            EventKind::Create(CreateKind::File),
++            EventKind::Modify(ModifyKind::Any),
++            EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
++            EventKind::Remove(RemoveKind::File),
++        ] {
++            assert!(project_event_changes_files(&kind));
++        }
++    }
++}

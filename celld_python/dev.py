@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import signal
 import socket
 import subprocess
 import time
+import urllib.request
 from pathlib import Path
 
 from .build import build, configurations
@@ -27,8 +29,19 @@ def environment():
     return env
 
 
-def stop(process):
-    process.terminate()
+def stop(process, log_path=None):
+    requested = False
+    if log_path and log_path.exists():
+        match = re.search(r"^celld internal listening on (127\.0\.0\.1:\d+)", log_path.read_text(), re.M)
+        if match:
+            try:
+                with urllib.request.urlopen(urllib.request.Request(
+                    f"http://{match[1]}/shutdown?handoff=preserve", data=b"", method="POST"), timeout=2) as response:
+                    requested = response.status == 200
+            except OSError:
+                pass
+    if not requested:
+        process.terminate()
     try:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired:
@@ -84,7 +97,7 @@ def run(target: Path, *, port=9876, host=None, reload=True):
     project = build(target, host=host)
     state = project / ".celld" / "dev"
     env = environment()
-    node_name = "python-dev-" + hashlib.sha256(str(project).encode()).hexdigest()[:12]
+    node_name = "dev-" + hashlib.sha256(str(project).encode()).hexdigest()[:12]
     env.update(CELLD_INTERNAL_DEV_STORE=str(state / "objects.sqlite3"),
                CELLD_WATCH=str(state / "runtime"), CELLD_NODE=node_name)
     running = True
@@ -129,10 +142,10 @@ def run(target: Path, *, port=9876, host=None, reload=True):
                                 pass
                 if process.poll() is not None and running:
                     raise RuntimeError((project / "node.log").read_text()[-5000:])
-                stop(process)
+                stop(process, project / "node.log")
                 process = None
     finally:
         if process is not None:
-            stop(process)
+            stop(process, project / "node.log")
         for s, handler in previous.items():
             signal.signal(s, handler)

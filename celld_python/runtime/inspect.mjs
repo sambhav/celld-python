@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+try {
 const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const {loadPyodide} = await import(pathToFileURL(spec.runtime + '/pyodide.mjs'));
 const py = await loadPyodide({indexURL:spec.runtime + '/',lockFileContents:spec.lock,
@@ -23,3 +24,8 @@ const app=sdk.load_worker(spec.entrypoint);
 const result={routes:JSON.parse(app.describe()),schema:JSON.parse(app.schema())};
 fs.writeFileSync(process.argv[3],JSON.stringify(result));
 app.destroy();sdk.destroy();
+
+} catch (error) {
+  console.error(error.message || String(error));
+  process.exitCode = 1;
+}

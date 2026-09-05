@@ -190,3 +190,56 @@ def test_generated_clients_and_host_context_hook(tmp_path):
             client = generated.AsyncClient(endpoint, token="one")
             assert (await client.read(counter_id="same")).total == 4
         asyncio.run(check())
+
+
+def test_dev_reloads_python_sources_and_survives_invalid_edits(tmp_path):
+    import sys
+    from celld_python import Client
+    from celld_python.build import lock
+
+    target = tmp_path / "minimal"
+    shutil.copytree(ROOT / "examples" / "minimal", target)
+    # Existing locked artifacts make this test independent of the network.
+    shutil.copytree(ROOT / "examples" / ".celld-python" / "cache", target / ".celld-python" / "cache")
+    # A declared pure Python wheel outside the Pyodide catalog is bundled too.
+    from test_build import wheel
+    wheel(target / "demo-1.0-py3-none-any.whl")
+    config = target / "pyproject.toml"
+    config.write_text(config.read_text().replace("dependencies = []", 'dependencies = ["demo==1.0"]') +
+                      '\n[tool.celld-python]\nwheels = ["demo-1.0-py3-none-any.whl"]\n')
+    source = target / "src" / "app.py"
+    source.write_text("from demo import VALUE\nassert VALUE == 42\n" + source.read_text())
+    lock(target)
+    port = port_number()
+    log_path = tmp_path / "dev.log"
+    with log_path.open("w") as log:
+        process = subprocess.Popen([sys.executable, "-m", "celld_python.cli", "dev", str(target), "--port", str(port)],
+                                   env=environment(), stdout=log, stderr=log)
+        def wait_for(text, count=1):
+            deadline = time.monotonic() + 90
+            while time.monotonic() < deadline:
+                if log_path.read_text().count(text) >= count:
+                    return
+                assert process.poll() is None, log_path.read_text()
+                time.sleep(.1)
+            pytest.fail(log_path.read_text())
+        try:
+            wait_for("ready http")
+            client = Client(f"http://127.0.0.1:{port}")
+            assert client.hello(name="Sam") == "Hello, Sam"
+            source = target / "src" / "app.py"
+            original = source.read_text()
+            source.write_text(original + "\nthis is invalid python !!\n")
+            wait_for("reload failed")
+            assert client.hello(name="Sam") == "Hello, Sam"
+            source.write_text(original.replace("Hello,", "Welcome,"))
+            wait_for("ready http", 2)
+            assert client.hello(name="Sam") == "Welcome, Sam"
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+                pytest.fail("dev supervisor did not stop its child")

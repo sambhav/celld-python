@@ -1,12 +1,56 @@
 name: tests
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   python:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e . pytest pytest-asyncio
+      - run: pytest -q
+  celld:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: python -m pip install -e . pytest pytest-asyncio
-      - run: pytest -q
+      - run: npm install -g esbuild@0.25.12
+      - name: Install pinned celld
+        run: |
+          curl -fL --retry 3 https://github.com/denoland/celld/releases/download/v0.4.0/celld-x86_64-unknown-linux-gnu.gz -o /tmp/celld.gz
+          echo '0488628597154725db2f61f85434fb381e1b2535d1e9f097c6d20727cd337973  /tmp/celld.gz' | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/celld-bin"
+          gunzip -c /tmp/celld.gz > "$RUNNER_TEMP/celld-bin/celld"
+          chmod +x "$RUNNER_TEMP/celld-bin/celld"
+          echo "$RUNNER_TEMP/celld-bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            examples/.celld-python/cache
+            examples/hello/.celld-python/cache
+          key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
+      - name: Fetch and verify locked artifacts
+        run: |
+          celld-py lock examples/hello
+          celld-py lock examples/fleet.toml
+          git diff --exit-code -- examples/hello/celld.lock.json examples/celld.lock.json
+      - name: Test actual celld and offline bundles
+        run: CELLD_E2E=1 pytest tests/test_celld.py -q
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: celld-test-logs
+          path: /tmp/pytest-of-*/**/*.log

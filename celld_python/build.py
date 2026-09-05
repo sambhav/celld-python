@@ -243,6 +243,7 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
     output = (output or root / ".celld-python" / "build").resolve()
     output.mkdir(parents=True, exist_ok=True)
     package = Path(__file__).parent
+    shutil.copytree(package / "licenses", output / "licenses", dirs_exist_ok=True)
     sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     port_runtime(runtime, output)
     for file in ("host.js", "assets.js", "wasm.js"):

@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "celld-python"
 version = "0.1.0"
-description = "Typed Python HTTP workers on an S3-backed celld fleet"
+description = "Typed Python functions and durable state on an S3-backed celld fleet"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = ["pydantic>=2.12,<3", "packaging>=24"]
 
@@ -13,7 +14,7 @@ dependencies = ["pydantic>=2.12,<3", "packaging>=24"]
 celld-py = "celld_python.cli:main"
 
 [tool.setuptools.package-data]
-celld_python = ["runtime/*.js", "runtime/*.mjs"]
+celld_python = ["runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
