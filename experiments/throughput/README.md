@@ -11,16 +11,17 @@ middleware, and an awaited HTTP JSON pricing/inventory lookup. The real upstream
 HTTP server adds a controlled 10 or 50 ms response delay. This is a reproducible
 I/O service model, not a measurement against an external production API.
 
-Four implementations isolate costs:
+These implementations isolate costs:
 
 | Mode | Behavior |
 | --- | --- |
 | `bare-stateless` | Native celld JavaScript HTTP handler, no Python/state/replay |
 | `python-durable` | Unmodified SDK, serialized interpreter per cell, durable receipts |
 | `python-no-receipts` | Diagnostic: same Python/cell routing and serialization, no storage |
-| `python-concurrent` | Diagnostic: no storage, overlapping async calls per interpreter |
+| `python-concurrent` | Diagnostic: no storage, overlapping async calls per interpreter in cells |
+| `python-stateless` | Diagnostic: Python directly in the native stateless pool; no cell routing, ownership, state, or receipts |
 
-The two diagnostics modify only generated benchmark projects. They remove replay
+The diagnostics modify only generated benchmark projects. They remove replay
 recovery; they reject state writes and are **not shipped runtime modes**. The
 concurrent case is an experiment in stateless async isolation, not a guarantee
 that arbitrary user libraries or application globals are concurrency safe.
@@ -62,3 +63,12 @@ Pydantic/DI metadata on the same runner. `baseline-durable` and
 project. The matched `python-*` cases use current code. The cache changes neither
 validation nor replay guarantees; it avoids rebuilding schemas and inspecting
 static function signatures for every request.
+
+The `benchmark-throughput-stateless` label compares the current dispatcher in
+concurrent cells against the native stateless pool and bare JavaScript on one
+runner per upstream delay. `python-stateless` retains the same Python function,
+validation, DI, middleware, context and wire format, but boots one interpreter
+per app/scope in each native stateless isolate. It has zero Python cells, does
+not persist replay receipts, and rejects keyed state. The native stateless pool
+uses celld's CPU-based default size; the cell packing limit does not apply to
+this mode. All of this routing remains inside the benchmark builder.

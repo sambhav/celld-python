@@ -26,7 +26,7 @@ def summarize(report):
 
 def markdown(reports):
     lines = ["# Confirmed hello and real HTTP I/O throughput", "",
-        "Each row is the median of three independent confirmation samples at the best screened concurrency for that mode and density. All requests succeeded and every reply was correlated with its unique input. Runs use one celld process, 16 Python cells, a Go keep-alive load generator, and the local development object store. The upstream service and load generator share the runner CPU with celld. These are measured capacities on this allocation, not remote S3 or multi-machine results.", ""]
+        "Each row is the median of three independent confirmation samples at the best screened concurrency for that mode and density. All requests succeeded and every reply was correlated with its unique input. Runs use one celld process, a Go keep-alive load generator, and the local development object store. The upstream service and load generator share the runner CPU with celld. These are measured capacities on this allocation, not remote S3 or multi-machine results.", ""]
     for report in sorted(reports,key=lambda r:r["io_delay_ms"]):
         delay = report["io_delay_ms"]
         cpu = next(line.split(":",1)[1].strip() for line in report["cpu"].splitlines() if line.startswith("Model name:"))
@@ -37,7 +37,7 @@ def markdown(reports):
         for r in summarize(report):
             lines.append(f"| {r['mode']} | {r['density']} | {r['clients']} | {r['rps']:.1f} | {r['rps_min']:.1f}–{r['rps_max']:.1f} | {r['p50_ms']:.2f} | {r['p95_ms']:.2f} | {r['p99_ms']:.2f} | {r['server_cpu_cores']:.2f} | {r['rss_bytes']/2**20:.1f} |")
         lines.append("")
-    lines += ["`baseline-*` embeds the dispatcher before validator/DI metadata caching. `python-durable` is the shipped SDK with caching and its replay guarantees. `python-concurrent` is a benchmark-only stateless experiment that removes receipts and the per-call concurrency gate. `bare-stateless` executes JavaScript directly in celld. The concurrent experiment does not provide durable replay and is not a public SDK mode.", "",
+    lines += ["`baseline-*` embeds the dispatcher before validator/DI metadata caching. `python-durable` is the shipped SDK with caching and its replay guarantees. `python-concurrent` is a benchmark-only stateless experiment that removes receipts and the per-call concurrency gate. `python-stateless` runs Python directly in the native stateless isolate pool, with zero Python cells and no durable replay. Cell-based modes use 16 cells. `bare-stateless` executes JavaScript directly in celld. The concurrent experiment does not provide durable replay and is not a public SDK mode.", "",
         "Receipts are capped at 4,096 per cell for 24 hours (65,536 total across 16 stateless cells). Durable throughput here describes the measured confirmation windows, not an indefinitely sustainable rate after the retained-call capacity is exhausted. No receipt limit or durability guarantee was relaxed for those rows.", "",
         "The quote service validates Pydantic inputs and outputs, resolves a dependency, runs middleware, awaits a real HTTP JSON pricing/inventory lookup, and returns a customer-specific total and request trace. Upstream latency is controlled; no third-party service was load-tested. Tail latencies include queueing under closed-loop load.", ""]
     return "\n".join(lines)

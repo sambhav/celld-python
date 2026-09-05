@@ -74,13 +74,18 @@ def templates(out, modes, upstream_url, baseline_ref):
                 sdk["celld/app.py"] = subprocess.check_output(["git", "show", baseline_ref + ":celld/app.py"], cwd=ROOT, text=True)
                 manifest.write_text(apps + "\nexport const sdk=" + json.dumps(sdk) + ";\n")
             runtime_mode = mode.replace("baseline-", "python-")
-            if runtime_mode in {"python-no-receipts", "python-concurrent"}:
+            if runtime_mode in {"python-no-receipts", "python-concurrent", "python-stateless"}:
                 host = target / "host.js"
                 source = remove_receipts(host.read_text())
-                if runtime_mode == "python-concurrent":
+                if runtime_mode in {"python-concurrent", "python-stateless"}:
                     gate = 'fetch(request){return this.ctx.blockConcurrencyWhile(()=>this.execute(request)).catch(failure);}'
                     assert source.count(gate) == 1
                     source = source.replace(gate, 'fetch(request){return this.execute(request).catch(failure);}')
+                if runtime_mode == "python-stateless":
+                    forward = 'return env.PYTHON_CELLS.get(env.PYTHON_CELLS.idFromName(identity)).fetch(forwarded);'
+                    assert source.count(forward) == 1
+                    source = source.replace(forward, "if(found.route.state_key)throw new Error('Stateless benchmark does not accept state');\n      const runtimeKey=JSON.stringify([scopeName,selected.app.name]);\n      let worker=statelessWorkers.get(runtimeKey);\n      if(!worker){worker=new PythonCell(undefined);statelessWorkers.set(runtimeKey,worker);}\n      return worker.fetch(forwarded);")
+                    source = 'const statelessWorkers=new Map();\n' + source
                 host.write_text(source)
         else:
             target.mkdir()
@@ -108,7 +113,7 @@ def main():
     import re
     assert re.fullmatch(r"[0-9a-f]{40}", args.baseline_ref)
     assert args.seconds > 0 and args.rounds > 0 and all(c > 0 for c in args.clients)
-    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent", "baseline-durable", "baseline-concurrent"}
+    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent", "baseline-durable", "baseline-concurrent", "python-stateless"}
     out = HERE / "build" / uuid.uuid4().hex[:12]
     out.mkdir(parents=True)
     binary = shutil.which("celld")
@@ -144,7 +149,7 @@ def main():
         phase = "screen" if round_ < args.rounds else "confirm"
         duration = args.seconds if phase == "screen" else args.confirm_seconds
         cases = [(mode,density,c) for mode in args.modes for density in args.densities
-                 if mode != "bare-stateless" or density == args.densities[0] for c in args.clients]
+                 if mode not in {"bare-stateless", "python-stateless"} or density == args.densities[0] for c in args.clients]
         if phase == "confirm":
             groups = {(s["mode"],s["density"]) for s in report["samples"]}
             cases = []
@@ -196,7 +201,7 @@ def main():
                         with urllib.request.urlopen(stats_url) as response: stats = json.load(response)
                         assert stats["completed"] == stats["requests"] == sample["requests"] and stats["active"]==0, (stats,sample)
                         sample.update(upstream=stats, upstream_cpu_cores=(cpu_seconds(upstream_process.pid)-upstream_cpu)/sample["elapsed_seconds"] if not args.smoke else 0)
-                    expected_cells = 0 if mode == "bare-stateless" else 16
+                    expected_cells = 0 if mode in {"bare-stateless", "python-stateless"} else 16
                     assert sample["resident_cells"] == expected_cells, sample
                     assert sample["errors"] == 0 and sample["requests"] > 0
                     report["samples"].append(sample)
