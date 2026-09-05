@@ -38,3 +38,21 @@ async def increment(counter_id: str, counter: State[Counter],
 @app.function(key="counter_id", namespace="counters")
 def read(counter_id: str, counter: State[Counter]) -> Counter:
     return counter.value
+
+
+class CallDetails(BaseModel):
+    actor: str
+    scope: str
+    call_id: str
+    attempt: int
+    client: str
+    host: dict
+    traced: bool
+
+
+@app.function
+def details(ctx: Context[Caller]) -> CallDetails:
+    """Show the caller data and the separate host-supplied context."""
+    return CallDetails(actor=ctx.data.actor, scope=ctx.scope, call_id=ctx.call_id,
+                       attempt=ctx.attempt, client=ctx.client.name, host=ctx.host,
+                       traced=ctx.local["traced"])

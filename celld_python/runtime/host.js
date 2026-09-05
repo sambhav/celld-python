@@ -73,8 +73,8 @@ function failure(exception) {
   return error('execution_error','Worker execution failed',500);
 }
 
-// Every scope/app/key (or stateless slot) owns a distinct celld V8 isolate and
-// Python interpreter. User code never runs in the shared ingress isolate.
+// Each scope/app/key (or stateless slot) owns a Python interpreter and a cell.
+// celld manages the underlying V8 isolate pool; cells can share an isolate.
 export class PythonCell {
   constructor(ctx){this.ctx=ctx;this.runtime=null;this.initialized=false;}
   fetch(request){return this.ctx.blockConcurrencyWhile(()=>this.execute(request)).catch(failure);}

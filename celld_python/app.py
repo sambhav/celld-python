@@ -119,6 +119,8 @@ def _state_models(provider, seen=None, kind=State):
     models = set()
     hints = get_type_hints(provider, include_extras=True)
     for name, param in inspect.signature(provider).parameters.items():
+        if param.kind in (param.POSITIONAL_ONLY, param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            raise TypeError("Worker functions and dependencies require named parameters")
         annotation, extras = _annotation(hints.get(name, Any))
         deps = [x for x in extras if isinstance(x, Depends)]
         if isinstance(param.default, Depends):
@@ -144,10 +146,17 @@ def _inputs(provider):
         if isinstance(param.default, Depends):
             dep = param.default
         if dep:
-            fields.update(_inputs(dep.provider))
+            nested = _inputs(dep.provider)
+            for field_name in fields.keys() & nested.keys():
+                if fields[field_name] != nested[field_name]:
+                    raise ValueError(f"Conflicting dependency argument: {field_name}")
+            fields.update(nested)
         elif annotation not in (Request, Invocation, Context) and get_origin(annotation) not in (State, Context):
             schema = Annotated[annotation, *extras] if extras else annotation
-            fields[name] = (schema, ... if param.default is inspect.Parameter.empty else param.default)
+            value = (schema, ... if param.default is inspect.Parameter.empty else param.default)
+            if name in fields and fields[name] != value:
+                raise ValueError(f"Conflicting dependency argument: {name}")
+            fields[name] = value
     return fields
 
 
@@ -235,8 +244,8 @@ class Worker:
 
     def function(self, handler=None, *, key=None, namespace=None):
         def register(function):
-            if function.__name__.startswith("_"):
-                raise ValueError("Exported function names cannot start with _")
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", function.__name__):
+                raise ValueError("Exported function names must be ASCII identifiers without a leading underscore")
             return self.route("POST", "/" + function.__name__, state_key=key,
                               namespace=namespace, _operation=function.__name__)(function)
         return register(handler) if handler is not None else register
@@ -251,7 +260,7 @@ class Worker:
             functions[route.operation] = dict(
                 description=inspect.getdoc(route.handler) or "",
                 arguments=arguments.model_json_schema(),
-                returns=TypeAdapter(get_type_hints(route.handler).get("return", Any)).json_schema(),
+                returns=TypeAdapter(get_type_hints(route.handler, include_extras=True).get("return", Any)).json_schema(),
                 context=route.context_model.model_json_schema() if route.context_model else None,
                 stateful=route.state_model is not None,
             )
@@ -380,7 +389,7 @@ class Worker:
                     value = await resolve(route.handler)
                     if isinstance(value, Response):
                         return value
-                    output = get_type_hints(route.handler).get("return", Any)
+                    output = get_type_hints(route.handler, include_extras=True).get("return", Any)
                     value = TypeAdapter(output).validate_python(value)
                     return Response.json(value)
                 except HTTPError as error:
@@ -405,7 +414,7 @@ class Worker:
             try:
                 response = await call(invocation if invocation is not None else request)
                 if invocation is not None:
-                    output = get_type_hints(matched.handler).get("return", Any)
+                    output = get_type_hints(matched.handler, include_extras=True).get("return", Any)
                     response = Response.json({"result": TypeAdapter(output).validate_python(response)})
             except HTTPError as error:
                 if invocation is not None:
@@ -419,8 +428,8 @@ class Worker:
         # Cleanup runs before the state is offered for commit. A cleanup failure aborts it.
         if state is not None and response.status < 400:
             # Revalidate mutations, including nested values, before persisting.
-            model = type(state.value)
-            committed = model.model_validate_json(state.value.model_dump_json()).model_dump_json()
+            model = matched.state_model
+            committed = model.model_validate_json(_JSON.dump_json(state.value)).model_dump_json()
         return response, committed
 
     async def handle_wire(self, payload: str, state_json: str | None = None) -> str:

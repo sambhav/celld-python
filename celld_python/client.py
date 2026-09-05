@@ -60,7 +60,9 @@ class Client:
         self.endpoint = endpoint.rstrip("/")
         self.timeout, self.retries, self._token = timeout, retries or RetryPolicy(), token
         self._context = self._encode_context(context)
-        self._client_info = (client_info or ClientInfo()).model_dump_json()
+        self._client_info = json.dumps((client_info or ClientInfo()).model_dump(), ensure_ascii=True, separators=(",", ":"))
+        if len(self._client_info) > 4096:
+            raise ValueError("Client information exceeds 4 KiB")
         self._call_id = None
         # Never forward credentials through redirects; application redirects are
         # not part of the function protocol. No global urllib opener is changed.
@@ -90,7 +92,7 @@ class Client:
         result._call_id = call_id
         return result
 
-    def call(self, function: str, **arguments):
+    def call(self, function: str, /, **arguments):
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", function):
             raise ValueError("Invalid function name")
         data = _JSON.dump_json(arguments)
@@ -154,6 +156,6 @@ class Client:
 
 
 class AsyncClient(Client):
-    async def call(self, function: str, **arguments):
+    async def call(self, function: str, /, **arguments):
         # Cancellation stops awaiting; it cannot undo an already submitted call.
         return await asyncio.to_thread(super().call, function, **arguments)

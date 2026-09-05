@@ -151,3 +151,42 @@ def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
         replay = request(port, "/counters/increment", {"counter_id": "a", "amount": 2}, headers=call)
         assert replay[2]["x-celld-replayed"] == "true"
         assert json.loads(replay[1])["result"]["total"] == 2
+
+
+def test_generated_clients_and_host_context_hook(tmp_path):
+    from test_codegen import load
+    from celld_python import ClientInfo, RemoteError
+    import asyncio
+
+    # This fixture is platform policy, deliberately outside the OSS runtime.
+    host = tmp_path / "platform.mjs"
+    host.write_text('''export function resolveContext(request) {
+      const scope = {'Bearer one':'one', 'Bearer two':'two'}[request.headers.get('authorization')];
+      if (!scope) return Response.json({error:{code:'denied',message:'Host rejected caller'}},{status:403});
+      return {scope, attributes:{principal:scope}};
+    }''')
+    project = build(ROOT / "examples" / "fleet.toml", tmp_path / "project", host=host)
+    generated = load(project / "counter_client.py")
+    publish_local(project, tmp_path / "publish.log")
+    with node(project, tmp_path / "node.log") as port:
+        endpoint = f"http://127.0.0.1:{port}/counters"
+        one = generated.Client(endpoint, token="one", context=generated.Caller(actor="Sam"), client_info=ClientInfo(name="test"))
+        two = generated.Client(endpoint, token="two", context=generated.Caller(actor="Sam"))
+        assert one.increment(counter_id="same", amount=2).total == 2
+        assert two.read(counter_id="same").total == 0
+        other = one.with_context(generated.Caller(actor="other"))
+        assert other.increment(counter_id="same").last_actor == "other"
+        assert one.increment(counter_id="same").last_actor == "Sam"
+        details = one.details()
+        assert (details.actor, details.scope, details.client, details.host, details.traced) == ("Sam", "one", "test", {"principal":"one"}, True)
+        status, raw, _ = request(port, "/counters/details", {}, headers={
+            "authorization":"Bearer one", "x-celld-scope":"forged", "x-celld-host":'{"principal":"forged"}',
+            "x-celld-context":'{"actor":"Sam"}'})
+        assert status == 200 and json.loads(raw)["result"]["host"] == {"principal":"one"}
+        assert request(port, "/counters/__celld/schema")[0] == 403
+        with pytest.raises(RemoteError, match="denied"):
+            generated.Client(endpoint).read(counter_id="same")
+        async def check():
+            client = generated.AsyncClient(endpoint, token="one")
+            assert (await client.read(counter_id="same")).total == 4
+        asyncio.run(check())
