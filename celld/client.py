@@ -26,7 +26,7 @@ _MAX_RESPONSE = 1024 * 1024
 
 @dataclass(frozen=True)
 class RetryPolicy:
-    """Bounded retries share one call ID and one total timeout."""
+    """Opt into bounded retries. Stateless functions can execute again."""
     attempts: int = 3
     initial_delay: float = 0.1
     max_delay: float = 2.0
@@ -60,7 +60,7 @@ class Client:
         if token is not None and any(c in token for c in "\r\n"):
             raise ValueError("Invalid token")
         self.endpoint = endpoint.rstrip("/")
-        self.timeout, self.retries, self._token = timeout, retries or RetryPolicy(), token
+        self.timeout, self.retries, self._token = timeout, retries or RetryPolicy(attempts=1), token
         self._context = self._encode_context(context)
         self._client_info = json.dumps((client_info or ClientInfo()).model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
         if len(self._client_info) > 4096:
@@ -87,7 +87,7 @@ class Client:
         return result
 
     def with_call_id(self, call_id: str) -> Self:
-        """Reuse an ID for one logical call, including recovery after a timeout."""
+        """Reuse a call ID. Saved-result recovery requires a replay-enabled function."""
         if not re.fullmatch(r"[a-zA-Z0-9_-]{16,128}", call_id):
             raise ValueError("Call IDs require 16–128 URL-safe characters")
         result = copy.copy(self)

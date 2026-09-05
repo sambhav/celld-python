@@ -41,7 +41,9 @@ result = client.quote(name="customer-123", quantity=2)
 print(result.total_cents)
 ```
 
-The deployed example uses the normal SDK's durable replay behavior. Its I/O calls
-serialize within each cell. The separate [throughput experiment](../../experiments/throughput)
-also measures a diagnostic path with overlapping stateless calls and no receipts;
-that path is not enabled by this example.
+The example uses the default stateless pool: asynchronous lookups overlap, and
+no replay receipts are written. Repeating a call can perform the lookup again.
+The client makes one attempt unless you pass a `RetryPolicy`. For saved-result
+recovery, change the decorator to `@app.function(replay=True)`; that selects the
+serialized, durable cell path. See the [throughput experiment](../../experiments/throughput)
+for the measured tradeoffs.

@@ -45,9 +45,9 @@ def middleware(function):
     return _worker(function.__module__).middleware(function)
 
 
-def function(handler=None, *, key=None, namespace=None):
+def function(handler=None, *, key=None, namespace=None, replay: bool | None = None):
     def register(fn):
-        return _worker(fn.__module__).function(fn, key=key, namespace=namespace)
+        return _worker(fn.__module__).function(fn, key=key, namespace=namespace, replay=replay)
     return register(handler) if handler is not None else register
 
 

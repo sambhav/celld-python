@@ -122,6 +122,95 @@ def test_hello_on_actual_celld(tmp_path):
         assert request(port, "/missing")[0] == 404
 
 
+def test_stateless_overlap_no_replay_and_opt_in_recovery(tmp_path):
+    from celld.build import lock
+
+    app = tmp_path / "app"
+    (app / "src").mkdir(parents=True)
+    (app / "pyproject.toml").write_text('[project]\nname="execution"\nversion="0.1.0"\ndependencies=[]\n')
+    shutil.copytree(ROOT / "examples/.celld-python/cache", app / ".celld-python/cache")
+    (app / "src/app.py").write_text('''
+import asyncio
+from celld import App, Context, Depends
+app = App
+seen = 0
+active = 0
+peak = 0
+closed = []
+
+@app.middleware
+async def trace(call, next):
+    call.context.local["trace"] = call.context.call_id
+    return await next(call)
+
+async def resource(ctx: Context):
+    try:
+        yield ctx
+    finally:
+        closed.append(ctx.call_id)
+
+@app.function
+def touch(value: int = 0) -> int:
+    global seen
+    seen += 1
+    return seen
+
+@app.function(replay=True)
+def saved(value: int = 0) -> int:
+    global seen
+    seen += 1
+    return seen
+
+@app.function
+async def overlap(name: str, ctx=Depends(resource)) -> dict:
+    global active, peak
+    active += 1
+    peak = max(peak, active)
+    try:
+        await asyncio.sleep(0.1)
+        return dict(name=name, actor=ctx.data["actor"], trace=ctx.local["trace"], peak=peak)
+    finally:
+        active -= 1
+
+@app.function
+def cleanup_count() -> int:
+    return len(closed)
+''')
+    lock(app)
+    project = build(app, tmp_path / "project")
+    publish_local(project, tmp_path / "publish.log")
+    call = {"x-celld-call-id": "repeat-the-same-call-001"}
+    with node(project, tmp_path / "node.log") as port:
+        schema = json.loads(request(port, "/__celld/schema")[1])["functions"]
+        assert schema["touch"]["replay"] is False and schema["saved"]["replay"] is True
+        for count in (1, 2):
+            status, raw, headers = request(port, "/touch", {}, headers=call)
+            assert status == 200 and json.loads(raw) == {"result": count}
+            assert headers.get("x-celld-replayed") is None
+        assert json.loads(request(port, "/touch", {"value": 99}, headers=call)[1]) == {"result": 3}
+        saved = request(port, "/saved", {}, headers=call)
+        repeated = request(port, "/saved", {}, headers=call)
+        assert saved[0] == repeated[0] == 200 and saved[1] == repeated[1]
+        assert repeated[2]["x-celld-replayed"] == "true"
+        assert request(port, "/saved", {"value": 99}, headers=call)[0] == 409
+        def invoke(i):
+            return request(port, "/overlap", {"name": str(i)}, headers={
+                "x-celld-call-id": f"concurrent-call-{i:04}",
+                "x-celld-context": json.dumps({"actor": f"actor-{i}"})})
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            replies = list(executor.map(invoke, range(8)))
+        for i, (status, raw, _) in enumerate(replies):
+            assert status == 200, raw
+            value = json.loads(raw)["result"]
+            assert (value["name"], value["actor"], value["trace"]) == (str(i), f"actor-{i}", f"concurrent-call-{i:04}")
+        assert max(json.loads(raw)["result"]["peak"] for _, raw, _ in replies) > 1
+        assert json.loads(request(port, "/cleanup_count", {})[1]) == {"result": 8}
+    with node(project, tmp_path / "restart.log") as port:
+        assert json.loads(request(port, "/touch", {}, headers=call)[1]) == {"result": 1}
+        repeated = request(port, "/saved", {}, headers=call)
+        assert repeated[2]["x-celld-replayed"] == "true" and repeated[1] == saved[1]
+
+
 def test_shared_fleet_state_concurrency_restart_and_numpy(tmp_path):
     project = build(ROOT / "examples" / "fleet.toml", tmp_path / "project")
     publish_local(project, tmp_path / "publish.log")

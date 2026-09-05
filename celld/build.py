@@ -246,7 +246,7 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
     shutil.copytree(package / "licenses", output / "licenses", dirs_exist_ok=True)
     sdk = {"celld/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     port_runtime(runtime, output)
-    for file in ("host.js", "assets.js", "wasm.js"):
+    for file in ("host.js", "stateless.js", "assets.js", "wasm.js"):
         shutil.copyfile(package / "runtime" / file, output / file)
     assets = {"/runtime/python_stdlib.zip": base64.b64encode((runtime / "python_stdlib.zip").read_bytes()).decode()}
     manifest = []

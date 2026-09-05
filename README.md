@@ -212,9 +212,24 @@ Unexpected exceptions are logged by the host and return a generic execution erro
 
 ## Retry behavior
 
-The client retries transport failures and transient 429/502/503/504 responses,
-using exponential jitter and one logical call ID. It does not retry application,
-validation or authorization errors, or arbitrary execution failures.
+Ordinary `@app.function` calls are stateless and run concurrently in celld's
+native stateless pool. They do not write receipts. Reusing a call ID executes
+the function again, including any external effects. Globals and imported modules
+may survive warm calls, but are not durable state and can disappear on eviction,
+restart, or deployment. Async calls overlap across awaits: keep mutable request
+data in `Context.local` or dependencies, and use libraries safe for that use.
+
+Use `@app.function(replay=True)` when you want saved-result recovery without
+keyed state. Functions declaring `key=...` and `State[Model]` keep replay
+implicitly. Those functions use cells and retain their serialization and durable
+commit guarantees. The function schema and generated method docstrings disclose
+the replay policy.
+
+Clients make **one attempt by default**. Passing `RetryPolicy()` explicitly opts
+into up to three attempts for transport failures and transient 429/502/503/504
+responses, using exponential jitter and one logical call ID. It does not retry
+application, validation or authorization errors, or arbitrary execution failures.
+For stateless functions, these retries can repeat the work.
 
 ```python
 from celld import RetryPolicy, RemoteError
@@ -227,7 +242,11 @@ operation.increment(counter_id="cart-123")
 
 Receipts are scoped to the worker cell. Reusing an ID within that cell with
 different arguments or context fails with `idempotency_conflict`. After a
-transport failure, `RemoteError.call_id` lets you recover that same logical call.
+transport failure, `RemoteError.call_id` lets you recover a replay-enabled call.
+For stateless calls, this ID is for correlation or downstream idempotency, not
+saved-result recovery. Changing a deployed function from replay to stateless
+also stops recovery of its old receipts; keep its replay policy until outstanding
+calls and their retention window have expired.
 External effects made before a crash are outside the state transaction; use
 `ctx.call_id` with the external service's own idempotency support.
 
@@ -318,8 +337,9 @@ The [warm throughput experiments](experiments/throughput) compare the SDK with
 Python running directly in celld's native stateless pool and with bare JavaScript.
 [Confirmed measurements](experiments/results/2026-09-05-stateless-throughput.md)
 include latency, CPU, memory, unique-response checks, and upstream completion
-counts. The stateless paths are benchmark-only experiments without durable replay;
-the shipped runtime keeps its replay guarantees and now caches static validation
+counts. Those measurements used benchmark-only prototypes without durable replay.
+Ordinary functions now use a supported stateless path, while keyed state and
+`replay=True` functions keep replay. The dispatcher caches static validation
 and dependency metadata instead of rebuilding it on every call.
 
 To embed your platform policy, pass a self-contained ES module with
@@ -344,12 +364,20 @@ an optional `token` for a platform that uses Bearer authentication.
 - celld 0.4.0 and Pyodide 314.0.6 are pinned. No celld fork is required.
 - State and result payloads are limited to 1 MiB; caller context to 16 KiB;
   client information to 4 KiB. These are implementation bounds, not tenant quotas.
-- Calls run under celld's native 30-second concurrency gate, including cold boot.
-  This is a short-function primitive; background jobs, streaming and native
-  subprocesses are not implemented.
-- Stateless calls use 16 stable cells per app/scope; stateful calls use one per
-  key. Each active cell has a Python interpreter. Cold starts and memory usage
-  have not been optimized with snapshots.
+- Replay-enabled calls run under celld's native 30-second concurrency gate,
+  including cold boot. Background jobs, streaming and native subprocesses are
+  not implemented. Client timeouts do not cancel submitted work.
+- Ordinary functions use the native stateless isolate pool, with one warm
+  interpreter per app/scope in each isolate and no Python cells or receipts.
+  Each handler caches at most four app/scope runtimes per isolate, evicting idle
+  entries first, and admits up to 256 concurrent calls per interpreter. It returns
+  a capacity error when all entries are busy. Host integrations using
+  `createHandler` can set `maxRuntimes` and `maxConcurrency`.
+- Eviction releases runtime references; native garbage collection controls when
+  WASM memory is reclaimed. Native isolate retirement controls the shared pool's
+  lifetime. This is not a guarantee of zero host RSS or zero machines.
+- Replay-enabled ordinary functions use 16 stable cells per app/scope; stateful
+  functions use one per key. Cold starts have not been optimized with snapshots.
 - Each cell retains up to 4,096 call receipts for 24 hours. At capacity it
   returns a retryable capacity error rather than evicting an unexpired receipt.
 - Replay covers committed state/results, not arbitrary external effects.
@@ -371,15 +399,22 @@ Pyodide's required JavaScript glue.
 ```sh
 python -m pip install -e . pytest pytest-asyncio
 pytest -q
+node --test tests/runtime/*.test.mjs
 # After locking the examples, with celld and esbuild on PATH:
 CELLD_E2E=1 pytest tests/test_celld.py -q
 ```
 
 Real celld tests cover Python/Pydantic, NumPy, generated clients, keyed concurrent
-updates, process restart, replay/conflicts, and host context. Framework tests
+updates, process restart, replay/conflicts, stateless overlap and repeated IDs,
+request cleanup, and host context. Framework tests
 cover dependency lifetimes, context separation, rollback and package checks.
 See [examples](examples) for minimal functions, counters and predeclared NumPy;
 the hello HTTP example is a lower-level escape hatch.
 
 Apache-2.0. Bundled runtimes/packages retain their own licenses; see
 [third-party notices](THIRD_PARTY.md).
+
+The [matched TypeScript comparison](experiments/results/2026-09-05-typescript-throughput.md)
+measures Zod-validated TypeScript beside Pydantic-validated Python on the same
+runner, including the real HTTP quote workload. [Runtime options](experiments/runtime-options.md)
+explain the tradeoffs between Pyodide snapshots, native CPython pools, and Monty.

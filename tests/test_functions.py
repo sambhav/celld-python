@@ -159,3 +159,29 @@ async def test_warm_output_validator_keeps_enforcing_constraints():
     assert (await app.dispatch(Request("POST", "/absolute", body=b'{"value":1}')))[0].status == 200
     with pytest.raises(ValidationError):
         await app.dispatch(Request("POST", "/absolute", body=b'{"value":-1}'))
+
+
+def test_execution_policy_is_explicit_in_routes_and_generated_contract():
+    app = Worker()
+
+    @app.function
+    def fast() -> str:
+        return "fast"
+
+    @app.function(replay=True)
+    def saved() -> str:
+        return "saved"
+
+    @app.function(key="key")
+    def durable(key: str, state: State[Value]) -> int:
+        return state.value.count
+
+    schema = json.loads(app.schema())["functions"]
+    routes = {route["operation"]: route for route in json.loads(app.describe())}
+    for name, replay, stateful in [("fast", False, False), ("saved", True, False), ("durable", True, True)]:
+        assert schema[name]["replay"] is routes[name]["replay"] is replay
+        assert schema[name]["stateful"] is stateful
+    with pytest.raises(ValueError, match="State functions retain replay"):
+        Worker().function(key="key", replay=False)(durable)
+    with pytest.raises(TypeError, match="boolean"):
+        app.function(replay="false")(fast)

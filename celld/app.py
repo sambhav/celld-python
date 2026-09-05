@@ -177,6 +177,7 @@ class Route:
     namespace: str | None
     operation: str | None = None
     context_model: type[BaseModel] | None = None
+    replay: bool = False
 
 
 @dataclass(frozen=True)
@@ -221,7 +222,9 @@ class Worker:
             self._outputs[provider] = TypeAdapter(output)
         return self._outputs[provider]
 
-    def route(self, method: str, path: str, *, state_key=None, namespace=None, _operation=None):
+    def route(self, method: str, path: str, *, state_key=None, namespace=None, replay: bool | None = None, _operation=None):
+        if replay is not None and type(replay) is not bool:
+            raise TypeError("replay must be a boolean")
         if not path.startswith("/") or "?" in path or "#" in path:
             raise ValueError("Routes must be absolute paths without query or fragment")
         names = re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", path)
@@ -245,6 +248,8 @@ class Worker:
             context_model = next(iter(contexts), None)
             if bool(model) != bool(state_key):
                 raise ValueError("State[T] and state_key must be declared together")
+            if model and replay is False:
+                raise ValueError("State functions retain replay; omit replay or use replay=True")
             if state_key and not _operation and state_key not in names:
                 raise ValueError("state_key must name a path parameter")
             if state_key and _operation:
@@ -260,7 +265,8 @@ class Worker:
                 if ns and r.namespace == ns and r.state_model is not model:
                     raise ValueError("Routes in one namespace must use the same state model")
             self.routes.append(Route(method.upper(), path, handler, re.compile(pattern), names,
-                                     model, state_key, ns, _operation, context_model))
+                                     model, state_key, ns, _operation, context_model,
+                                     bool(model) if replay is None else replay))
             return handler
         return register
 
@@ -284,12 +290,17 @@ class Worker:
         self.middlewares.append(function)
         return function
 
-    def function(self, handler=None, *, key=None, namespace=None):
+    def function(self, handler=None, *, key=None, namespace=None, replay: bool | None = None):
+        """Export a stateless function, or retain results with ``replay=True``.
+
+        Keyed State functions always retain durable replay. Ordinary functions
+        overlap across awaits; retrying them may execute their effects again.
+        """
         def register(function):
             if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", function.__name__):
                 raise ValueError("Exported function names must be ASCII identifiers without a leading underscore")
             return self.route("POST", "/" + function.__name__, state_key=key,
-                              namespace=namespace, _operation=function.__name__)(function)
+                              namespace=namespace, replay=replay, _operation=function.__name__)(function)
         return register(handler) if handler is not None else register
 
     def schema(self) -> str:
@@ -305,12 +316,13 @@ class Worker:
                 returns=TypeAdapter(get_type_hints(route.handler, include_extras=True).get("return", Any)).json_schema(mode="serialization"),
                 context=route.context_model.model_json_schema() if route.context_model else None,
                 stateful=route.state_model is not None,
+                replay=route.replay,
             )
         return json.dumps(dict(version=1, functions=functions))
 
     def describe(self) -> str:
         return json.dumps([dict(method=r.method, path=r.path, pattern=r.regex.pattern,
-                                names=r.names, state_key=r.state_key, namespace=r.namespace, operation=r.operation)
+                                names=r.names, state_key=r.state_key, namespace=r.namespace, operation=r.operation, replay=r.replay)
                            for r in self.routes])
 
     def match(self, request: Request) -> Route:

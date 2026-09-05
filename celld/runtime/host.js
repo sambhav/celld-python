@@ -1,11 +1,12 @@
 import { loadPyodide } from './pyodide.mjs';
 import createPyodideModule from './pyodide.asm.mjs';
 import { apps, sdk } from './manifest.js';
+import { createStatelessPool, PoolBusy } from './stateless.js';
 
 const MAX_BYTES = 1024 * 1024;
 const RECEIPT_TTL = 24 * 60 * 60 * 1000;
 const MAX_RECEIPTS = 4096;
-const STATELESS_SLOTS = 16; // Stable across deployments: retries must find the same receipt.
+const STATELESS_SLOTS = 16; // Replay-enabled functions: stable across deployments.
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 const decode = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
@@ -67,13 +68,21 @@ async function boot(app) {
 function response(result) {
   return new Response([204,205,304].includes(result.status)?null:decode(result.body), {status:result.status,headers:result.headers});
 }
+async function invoke(runtime,selected,request,bytes,before=null) {
+  const payload=JSON.stringify({method:request.method,path:selected.path,query:selected.url.search.slice(1),headers:[...request.headers],body:encode(bytes)});
+  const result=JSON.parse(await runtime.worker.handle_wire(payload,before===null?undefined:before));
+  if(encoder.encode(result.state||'').length>MAX_BYTES || result.body.length>Math.ceil(MAX_BYTES*4/3))
+    throw new Error('Result or state exceeds 1 MiB');
+  return result;
+}
 function failure(exception) {
+  if(exception instanceof PoolBusy)return error('capacity_exceeded',exception.message,429);
   console.error(exception.stack||String(exception));
-  if(exception.message==='Body exceeds 1 MiB') return error('payload_too_large',exception.message,413);
+  if(['Body exceeds 1 MiB','Result or state exceeds 1 MiB'].includes(exception.message)) return error('payload_too_large',exception.message,413);
   return error('execution_error','Worker execution failed',500);
 }
 
-// Each scope/app/key (or stateless slot) owns a Python interpreter and a cell.
+// Each scope/app/key (or replay slot) owns a Python interpreter and a cell.
 // celld manages the underlying V8 isolate pool; cells can share an isolate.
 export class PythonCell {
   constructor(ctx){this.ctx=ctx;this.runtime=null;this.initialized=false;}
@@ -105,10 +114,7 @@ export class PythonCell {
     this.runtime??=boot(selected.app).catch(exception=>{this.runtime=null;throw exception;});
     const runtime=await this.runtime;
     const before=this.ctx.storage.sql.exec('SELECT value FROM _python_state WHERE id=1').toArray()[0]?.value??null;
-    const payload=JSON.stringify({method:request.method,path:selected.path,query:selected.url.search.slice(1),headers:[...request.headers],body:encode(bytes)});
-    const result=JSON.parse(await runtime.worker.handle_wire(payload,before===null?undefined:before));
-    if(encoder.encode(result.state||'').length>MAX_BYTES || result.body.length>Math.ceil(MAX_BYTES*4/3))
-      return error('payload_too_large','Result or state exceeds 1 MiB',413);
+    const result=await invoke(runtime,selected,request,bytes,before);
     // Commit state and receipt in one SQLite transaction. celld's output gate
     // keeps the response behind durable replication. External effects still
     // need their own idempotency key if a crash precedes this transaction.
@@ -125,7 +131,9 @@ export class PythonCell {
 
 // Platform policy is intentionally outside this module. The optional resolver
 // can reject with a Response, or supply a stable scope and trusted attributes.
-export function createHandler({resolveContext=async()=>({})}={}) { return {
+export function createHandler({resolveContext=async()=>({}), maxRuntimes=4, maxConcurrency=256}={}) {
+  const stateless=createStatelessPool(boot,{maxRuntimes,maxConcurrency});
+  return {
   async fetch(request,env){
     try {
       const selected=select(request);
@@ -153,6 +161,16 @@ export function createHandler({resolveContext=async()=>({})}={}) { return {
       if((headers.get('x-celld-request-id')||'').length>128 || (headers.get('x-celld-client')||'').length>4096 || (headers.get('x-celld-context')||'').length>16384)
         return error('context_too_large','Context or client information exceeds its limit',413);
       const bytes=await readBody(request);
+      if(!found.route.state_key && found.route.replay===false) {
+        const key=JSON.stringify([scopeName,selected.app.name]);
+        // Use the normalized, trusted headers for both execution paths.
+        const forwarded=new Request(request.url,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:bytes});
+        return await stateless.run(key,selected.app,async runtime=>{
+          const result=await invoke(runtime,selected,forwarded,bytes);
+          if(result.state!==null)throw new Error('A stateless function cannot commit state');
+          return response(result);
+        });
+      }
       let scope;
       if(found?.route.state_key){
         const {route,match}=found;let key;

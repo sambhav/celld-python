@@ -190,7 +190,10 @@ def generate(schema: dict, output: Path):
             params.append(f"{param}: {annotation}{default}")
             pairs.append(f"{wire!r}: {param}")
         signature = "self" + (", *, " + ", ".join(params) if params else "")
-        methods.append((method, name, signature, input_model, output_type, ", ".join(pairs), spec.get("description", "")))
+        behavior = ("Committed results can be replayed for 24 hours." if spec.get("replay", True)
+                    else "Stateless: retrying this function can execute it again.")
+        description = (spec.get("description", "") + "\n\n" + behavior).strip()
+        methods.append((method, name, signature, input_model, output_type, ", ".join(pairs), description))
     model_source = generator.render_models()
     context_type = " | ".join(dict.fromkeys(contexts)) or "dict[str, Any]"
     classes = []

@@ -16,13 +16,13 @@ These implementations isolate costs:
 | Mode | Behavior |
 | --- | --- |
 | `bare-stateless` | Native celld JavaScript HTTP handler, no Python/state/replay |
-| `python-durable` | Unmodified SDK, serialized interpreter per cell, durable receipts |
+| `python-durable` | SDK receipt path forced on, serialized interpreter per cell, durable receipts |
 | `python-no-receipts` | Diagnostic: same Python/cell routing and serialization, no storage |
 | `python-concurrent` | Diagnostic: no storage, overlapping async calls per interpreter in cells |
 | `python-stateless` | Diagnostic: Python directly in the native stateless pool; no cell routing, ownership, state, or receipts |
 
 The diagnostics modify only generated benchmark projects. They remove replay
-recovery; they reject state writes and are **not shipped runtime modes**. The
+recovery; they reject state writes and are **not the supported default runtime path**. The
 concurrent case is an experiment in stateless async isolation, not a guarantee
 that arbitrary user libraries or application globals are concurrency safe.
 Optional `bare-cell` and `bare-write` controls isolate cell routing and SQLite writes.
@@ -95,3 +95,9 @@ Node.js. This is a matched application implementation, not a TypeScript SDK.
 No receipts or state are used by either language. The minimal bare control omits
 these validation/middleware/DI layers. The native binary is reused from run
 `33988408853`. Run `npm ci && npm test` in `typescript/` for correctness checks.
+
+The supported SDK now defaults ordinary functions to a bounded native stateless
+pool. Historical `python-stateless` measurements still describe the prototype at
+the recorded revision. To keep cell/ablation comparisons reproducible, the harness
+explicitly enables replay in its generated manifest before applying diagnostics;
+it never silently substitutes the new default for a named durable case.

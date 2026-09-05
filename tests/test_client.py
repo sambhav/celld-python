@@ -45,6 +45,15 @@ def test_retries_preserve_call_identity_and_snapshot_context():
     assert json.loads(first["X-celld-client"])["name"] == "test"
 
 
+def test_default_client_does_not_repeat_an_ambiguous_execution():
+    client = Client("http://localhost")
+    client._opener = Transport(urllib.error.URLError("lost response"), Reply({"result": 42}))
+    with pytest.raises(RemoteError, match="transport_error") as error:
+        client.answer()
+    assert len(client._opener.requests) == 1
+    assert error.value.call_id
+
+
 def test_expected_errors_never_retry_and_expose_recovery_id():
     client = Client("http://localhost").with_call_id("known-logical-call-001")
     client._opener = Transport(Reply({"error": {"code": "denied", "message": "No"}}, 400))

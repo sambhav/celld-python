@@ -69,6 +69,17 @@ def templates(out, modes, upstream_url, baseline_ref):
         target = out / (mode + "-template")
         if mode.startswith(("python", "baseline")):
             shutil.copytree(project, target)
+            # Preserve the explicitly named cell/ablation cases when the SDK
+            # defaults change. Only the generated benchmark manifest is edited.
+            manifest = target / "manifest.js"
+            apps_json, sdk_json = manifest.read_text().split("\nexport const sdk=", 1)
+            manifest_apps = json.loads(apps_json.removeprefix("export const apps=").strip().removesuffix(";"))
+            for app in manifest_apps:
+                for route in app["routes"]:
+                    route["replay"] = True
+                for function in app["schema"]["functions"].values():
+                    function["replay"] = True
+            manifest.write_text("export const apps=" + json.dumps(manifest_apps) + ";\nexport const sdk=" + sdk_json)
             if mode.startswith("baseline"):
                 manifest = target / "manifest.js"
                 apps, sdk_json = manifest.read_text().split("\nexport const sdk=", 1)
