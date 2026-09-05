@@ -1,0 +1,116 @@
+diff --git a/crates/celld/env_vars.rs b/crates/celld/env_vars.rs
+index 5350c6e..71bc067 100644
+--- a/crates/celld/env_vars.rs
++++ b/crates/celld/env_vars.rs
+@@ -14,6 +14,7 @@ use anyhow::{anyhow, bail};
+ /// they cannot return a configuration error at the point of use. This pass
+ /// makes those reads infallible without giving malformed values a default.
+ pub fn validate() -> anyhow::Result<()> {
++    cell_isolate_limit()?;
+     for name in [
+         "CELLD_CLOUD",
+         "CELLD_CLOUD_RESTART_ON_DEPLOY",
+@@ -180,3 +181,52 @@ where
+ {
+     Ok(positive(name)?.unwrap_or(default))
+ }
++
++/// Operators may trade cell density for CPU parallelism without increasing
++/// the engine's existing 32-cell per-heap failure boundary.
++pub fn cell_isolate_limit() -> anyhow::Result<usize> {
++    parse_cell_isolate_limit(value("CELLD_MAX_CELLS_PER_ISOLATE")?)
++}
++
++pub fn parse_cell_isolate_limit(value: Option<String>) -> anyhow::Result<usize> {
++    let name = "CELLD_MAX_CELLS_PER_ISOLATE";
++    let limit = parse_positive::<usize>(name, value)?.unwrap_or(32);
++    if limit > 32 {
++        bail!("{name} must be between 1 and 32, not {limit}");
++    }
++    Ok(limit)
++}
++
++#[cfg(test)]
++mod cell_isolate_limit_tests {
++    use super::parse_cell_isolate_limit;
++
++    #[test]
++    fn preserves_default_and_accepts_lower_density() {
++        assert_eq!(parse_cell_isolate_limit(None).unwrap(), 32);
++        for count in 1..=32 {
++            assert_eq!(
++                parse_cell_isolate_limit(Some(count.to_string())).unwrap(),
++                count
++            );
++        }
++    }
++
++    #[test]
++    fn rejects_invalid_or_larger_failure_boundaries() {
++        for value in [
++            "",
++            "0",
++            "-1",
++            "33",
++            "1.5",
++            "auto",
++            "999999999999999999999999",
++        ] {
++            assert!(
++                parse_cell_isolate_limit(Some(value.into())).is_err(),
++                "{value}"
++            );
++        }
++    }
++}
+diff --git a/crates/celld/main/cli.rs b/crates/celld/main/cli.rs
+index e79ba3e..af7438c 100644
+--- a/crates/celld/main/cli.rs
++++ b/crates/celld/main/cli.rs
+@@ -366,6 +366,7 @@ TUNING:
+   CELLD_ALARM_RESIDENT_MS         Near-alarm residency window
+   CELLD_WAKER_TICK_MS             Orphan-alarm scan interval
+   CELLD_V8_HEAP_LIMIT_MB          Per-isolate V8 heap limit
++  CELLD_MAX_CELLS_PER_ISOLATE     Cell packing limit (1..32, default: 32)
+   CELLD_FETCH_TIMEOUT_S           Outbound fetch timeout
+   CELLD_HANDLER_BUDGET_S          JavaScript handler budget
+   CELLD_TOKIO_THREADS             Tokio runtime worker threads
+diff --git a/crates/celld/runtime.rs b/crates/celld/runtime.rs
+index f9f5062..f575d1f 100644
+--- a/crates/celld/runtime.rs
++++ b/crates/celld/runtime.rs
+@@ -297,7 +297,6 @@ pub fn admission_wait() -> std::time::Duration {
+ pub fn pool_limits() -> celld_logic::isolate::PoolLimits {
+     const GROW_AT: usize = 2;
+     const SHRINK_UNDER: usize = 1;
+-    const MAX_CELLS_PER_ISOLATE: usize = 32;
+     let cores = std::thread::available_parallelism()
+         .map(|n| n.get())
+         .unwrap_or(4);
+@@ -308,9 +307,11 @@ pub fn pool_limits() -> celld_logic::isolate::PoolLimits {
+         shrink_under: SHRINK_UNDER,
+         max_stateless: env_usize("CELLD_MAX_STATELESS_ISOLATES").unwrap_or(cores),
+         max_requests: env_usize("CELLD_MAX_REQUESTS"),
+-        // This is an engine blast-radius policy. The resident-cell and RSS
+-        // limits are the operator controls for node memory.
+-        max_cells: MAX_CELLS_PER_ISOLATE,
++        // Lower density can spread CPU-heavy cells over more isolates. The
++        // configuration cannot increase the existing per-heap failure bound;
++        // resident-cell and RSS limits still govern node memory admission.
++        max_cells: crate::env_vars::cell_isolate_limit()
++            .expect("validated CELLD_MAX_CELLS_PER_ISOLATE"),
+     }
+ }
+ 
+diff --git a/docs/README.md b/docs/README.md
+index 87d60b0..80002b3 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -686,6 +686,7 @@ For the full list, run `celld -h`. This table shows the primary settings:
+ | `CELLD_MAX_CELL_REQUESTS` | The concurrent fetch limit for one Durable Object or Queue broker (default: 64) |
+ | `CELLD_MAX_REQUEST_BODY_BYTES` | The body limit for a public Worker request or a direct Durable Object request (default: 1 GiB) |
+ | `CELLD_MAX_RESIDENT_CELLS` | The hard limit for resident cells, enforced at admission |
++| `CELLD_MAX_CELLS_PER_ISOLATE` | Cell packing limit per V8 isolate (1–32; default: 32). Lower values can increase CPU parallelism at the cost of additional heaps. Packing, retirement, and node memory admission rules remain unchanged. This is a process-start setting; it does not migrate existing cells |
+ | `CELLD_MAX_RSS_MB` | The memory threshold for pressure shedding, applied to the greater of the allocator-adjusted RSS and the allocator-adjusted active cgroup working set (default: 80% of the available memory; 0 disables the threshold and the absolute cap) |
+ | `CELLD_OUTPUT_GATE` | The default is `1`, so celld proves each write durable before it acknowledges the write. Set `0` to remove the replication wait and accept possible loss of an acknowledged write |
+ | `CELLD_DURABILITY` | How celld proves a write durable before it answers. The default is `fleet`: the node serving the cell sends the write to one or two other nodes and answers once they hold it on disk, or once the bucket upload finishes, whichever comes first. This needs two or more nodes; a single node has nobody to send to, so every write waits for the bucket. Set `bucket` to always wait for the bucket |

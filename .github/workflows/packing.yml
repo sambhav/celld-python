@@ -1,0 +1,87 @@
+name: native cell packing experiment
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  packing:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark-packing'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: denoland/celld
+          ref: a52f9905425bc41134d817694bdc2c50bcc5e856
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+          python -m pip install -e . pytest pytest-asyncio
+          npm install -g esbuild@0.25.12
+      - name: Apply only the density patch
+        run: |
+          git -C upstream apply --check ../patches/celld-0.4.0-cell-density.patch
+          git -C upstream apply ../patches/celld-0.4.0-cell-density.patch
+          git -C upstream diff --check
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            upstream/target
+          key: celld-density-a52f990-1.98.1-${{ hashFiles('patches/celld-0.4.0-cell-density.patch') }}
+          restore-keys: celld-density-a52f990-1.98.1-
+      - name: Test parser, packing boundaries, and retirement invariants
+        run: python experiments/packing/check.py upstream
+      - name: Build the native experiment
+        run: |
+          cargo build --manifest-path upstream/Cargo.toml -p celld --profile lab --locked
+          upstream/target/lab/celld --version
+          echo "$GITHUB_WORKSPACE/upstream/target/lab" >> "$GITHUB_PATH"
+      - name: Check binary configuration validation
+        run: |
+          python - <<'PY'
+          import os, subprocess
+          result = subprocess.run(['celld', '--bucket', 'celld-dev', '--listen', '127.0.0.1:0', '--internal-listen', '127.0.0.1:0'],
+              env=dict(os.environ, CELLD_MAX_CELLS_PER_ISOLATE='33'), capture_output=True, text=True, timeout=15)
+          assert result.returncode != 0
+          assert 'CELLD_MAX_CELLS_PER_ISOLATE' in result.stdout + result.stderr
+          PY
+      - uses: actions/cache@v4
+        with:
+          path: |
+            examples/.celld-python/cache
+            examples/hello/.celld-python/cache
+          key: pyodide-314.0.6-${{ hashFiles('examples/**/celld.lock.json') }}
+      - run: |
+          pycelld lock examples/fleet.toml
+          pycelld lock examples/hello
+          git diff --exit-code -- examples/celld.lock.json examples/hello/celld.lock.json
+      - name: Verify Python contracts with the patched binary
+        run: CELLD_E2E=1 pytest tests/test_celld.py -q
+      - name: Compare packing density with the same binary and host
+        env:
+          BENCH_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python experiments/packing/measure.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-packing-results
+          path: |
+            experiments/packing/build/*.json
+            experiments/packing/build/*.md
+            experiments/packing/build/*.log
+            /tmp/pytest-of-*/**/*.log

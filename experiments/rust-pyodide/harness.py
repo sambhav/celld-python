@@ -22,7 +22,7 @@ class RunningNode:
 
 
 @contextmanager
-def measured_node(project, log_path, *, idle_seconds=None, node_suffix=None):
+def measured_node(project, log_path, *, idle_seconds=None, node_suffix=None, cell_density=None):
     port = free_port()
     env = environment()
     env.update(CELLD_INTERNAL_DEV_STORE=str(project / ".celld/dev/objects.sqlite3"),
@@ -34,6 +34,10 @@ def measured_node(project, log_path, *, idle_seconds=None, node_suffix=None):
         env["CELLD_WATCH"] = str(project / ".celld/dev" / ("runtime-" + node_suffix))
     if idle_seconds is not None:
         env["CELLD_IDLE_EVICT_S"] = str(idle_seconds)
+    if cell_density is not None:
+        if not 1 <= cell_density <= 32:
+            raise ValueError("cell_density must be between 1 and 32")
+        env["CELLD_MAX_CELLS_PER_ISOLATE"] = str(cell_density)
     with log_path.open("w") as log:
         start = time.perf_counter_ns()
         process = subprocess.Popen([shutil.which("celld"), "--no-control-plane", "--bucket", "celld-dev",

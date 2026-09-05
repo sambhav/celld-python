@@ -1,4 +1,12 @@
-# Optional upstream Rust fix
+# Optional upstream Rust patches
+
+The [cell-density patch](celld-0.4.0-cell-density.patch) makes the native packing
+ceiling configurable from 1 to 32, preserving the default and existing packing/
+retirement rules. See the [packing experiment](../experiments/packing) for the
+tests and same-binary GitHub comparison. It is optional and has not been sent
+upstream. The stock celld release remains the SDK's default requirement.
+
+## Development watcher
 
 `celld-0.4.0-watch-reads.patch` applies to upstream celld tag `v0.4.0`
 (`a52f9905425bc41134d817694bdc2c50bcc5e856`). It excludes filesystem access
