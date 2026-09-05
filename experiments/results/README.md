@@ -1,5 +1,37 @@
 # Measured results
 
+## Warm hello and real HTTP I/O
+
+[Confirmed report](2026-09-05-stateless-throughput.md) · [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33988408853) · SDK `96059cdbf4fd413be622818bfb168280f5443dee`
+
+A typed quote function awaits a real HTTP JSON pricing/inventory service, validates
+inputs and outputs with Pydantic, resolves a dependency, and carries a request trace
+through middleware. Every client reply and upstream completion is checked. Each
+result below is a median of three fresh-process 15-second confirmation trials.
+
+| Workload | Runner CPU (2 physical / 4 logical) | Direct stateless Python req/s | p95 ms at peak | Bare JavaScript req/s |
+| --- | --- | ---: | ---: | ---: |
+| Hello world | AMD EPYC 7763 | 3,883 | 82.5 | 20,740 |
+| Quote, 10 ms upstream | Intel Xeon 6973P-C | 3,015 | 105.0 | 15,497 |
+| Quote, 50 ms upstream | AMD EPYC 7763 | 1,737 | 174.8 | 6,484 |
+
+These Python results use a **benchmark-only direct stateless pool implementation**,
+with no cells or durable replay receipts. The comparable concurrent-cell experiment
+reaches 2,779 / 2,124 / 1,297 req/s respectively, on the same runner for each row.
+Direct stateless Python uses roughly 741–855 MiB RSS versus 1,753–1,820 MiB for
+concurrent Python cells. It still needs Pyodide and its Python CPU cost; this is
+not native CPython execution. The shipped SDK retains durable replay.
+
+The load generator uses keep-alive and balanced clients, with no retries or replay.
+The service, generator, and controlled upstream share the CPU allocation. Each
+workload's implementations share one runner, but CPU models differ across workload
+rows: do not attribute the 10-vs-50 ms throughput difference solely to I/O latency.
+The native binary uses the lab profile and local development object store, not
+remote S3. The raw [hello](2026-09-05-stateless-hello.json), [10 ms I/O](2026-09-05-stateless-io10.json),
+and [50 ms I/O](2026-09-05-stateless-io50.json) JSON files retain all screening
+points, confirmation ranges, CPU, RSS, and latency. Peak capacity builds queues; it is not a low-latency SLO.
+
+
 ## Native packing improvement
 
 [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33981405520) · source `2edc509b86de54574eadc92cd7e56926a61f47d3` · [summary JSON](2026-09-05-packing.json)
@@ -99,6 +131,6 @@ Wake requests succeed and rebuild the interpreter. The broader lifecycle test al
 - No remote S3 was used. The local development store substitutes for S3; production network/storage latency remains unmeasured.
 - Increasing clients, keys or processes on one runner does not add physical CPU resources. No multi-machine linear-scaling claim is made.
 - Every measured reply is validated and state totals must be consecutive. No replayed calls, failed requests or lost increments are counted as successful throughput.
-- The async workload is a timer, not a benchmark of an external network service.
+- The older worker-scaling async workload is a timer. The quote benchmark above uses an actual local HTTP upstream with controlled delay.
 - Early runs capped stateless isolates at one. They are excluded from the default-pool table above. The [earlier short default-pool sweep](2026-09-05-short-sweep.json) used 3-second samples and a smaller CPU calculation; it supports the qualitative split but is not pooled with these samples.
-- These source revisions predate the package/import rename to `celld` and CLI rename to `pycelld`. The rename has separate framework, actual-celld and installed-wheel verification.
+- The older scaling/lifecycle source revisions predate the package/import rename to `celld` and CLI rename to `pycelld`. The rename has separate framework, actual-celld and installed-wheel verification.

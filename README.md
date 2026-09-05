@@ -312,6 +312,16 @@ one fixed runner. It preserves the default of 32 and requires the
 patch; the experiment includes pinned build instructions. It does not solve idle
 memory retention.
 
+The [async quote example](examples/quote) performs a real HTTP JSON lookup with
+Pydantic validation, dependency injection, middleware, and a generated client.
+The [warm throughput experiments](experiments/throughput) compare the SDK with
+Python running directly in celld's native stateless pool and with bare JavaScript.
+[Confirmed measurements](experiments/results/2026-09-05-stateless-throughput.md)
+include latency, CPU, memory, unique-response checks, and upstream completion
+counts. The stateless paths are benchmark-only experiments without durable replay;
+the shipped runtime keeps its replay guarantees and now caches static validation
+and dependency metadata instead of rebuilding it on every call.
+
 To embed your platform policy, pass a self-contained ES module with
 `--host platform.mjs` to `build`, `dev` or `deploy`:
 
