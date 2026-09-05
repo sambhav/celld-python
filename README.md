@@ -305,6 +305,10 @@ More keys do not guarantee more CPU parallelism: celld can place cells in a shar
 V8 isolate. See the measured [runtime experiments](experiments/rust-pyodide).
 The [results](experiments/results) distinguish worker residency from process
 memory: idle eviction does not currently return RSS close to its startup baseline.
+For CPU-heavy pools, an optional [native density patch](experiments/packing)
+measured 2.14× throughput at two cells per isolate for 14.4% more active RSS on
+one fixed runner. It preserves the default of 32 and requires a patched celld
+binary; it does not solve idle memory retention.
 
 To embed your platform policy, pass a self-contained ES module with
 `--host platform.mjs` to `build`, `dev` or `deploy`:

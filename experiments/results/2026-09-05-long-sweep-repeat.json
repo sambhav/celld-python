@@ -1,0 +1,521 @@
+{
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 7763 64-Core Processor\nCPU family:                              25\nModel:                                   1\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                4890.86\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                1 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "extra_artifact_bytes": {
+    "rust_runtime.d.ts": 3313,
+    "rust_runtime.js": 26775,
+    "rust_runtime_bg.wasm": 230830,
+    "rust_runtime_bg.wasm.d.ts": 1742
+  },
+  "fleet_scaling": [
+    {
+      "cpu_cores_used": 1.0415022549027895,
+      "median_rps": 5.184460631369786,
+      "nodes": 1,
+      "rss_bytes": 951336960,
+      "speedup": 1
+    },
+    {
+      "cpu_cores_used": 2.0362387987522306,
+      "median_rps": 10.118977546633792,
+      "nodes": 2,
+      "rss_bytes": 1318744064,
+      "speedup": 1.9517898323707121
+    },
+    {
+      "cpu_cores_used": 3.863881109546493,
+      "median_rps": 9.218006623172549,
+      "nodes": 4,
+      "rss_bytes": 2016768000,
+      "speedup": 1.77800687064665
+    }
+  ],
+  "head_sha": "b1b675ecc1244d052d8892ba124f4493b199c69b",
+  "idle": [
+    {
+      "active_rss_bytes": 492503040,
+      "backend": "javascript",
+      "first_request_ms": 3668.864,
+      "idle_wait_ms": 2356.355,
+      "inactive_rss_bytes": 487362560,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4195.834,
+      "wake_request_ms": 3016.53,
+      "workload": "hello"
+    },
+    {
+      "active_rss_bytes": 560832512,
+      "backend": "javascript",
+      "first_request_ms": 4615.703,
+      "idle_wait_ms": 2358.251,
+      "inactive_rss_bytes": 558792704,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4198.588,
+      "wake_request_ms": 4036.043,
+      "workload": "numpy"
+    },
+    {
+      "active_rss_bytes": 504426496,
+      "backend": "javascript",
+      "first_request_ms": 3635.35,
+      "idle_wait_ms": 2407.604,
+      "inactive_rss_bytes": 498778112,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4194.737,
+      "wake_request_ms": 3026.625,
+      "workload": "counter"
+    },
+    {
+      "active_rss_bytes": 498843648,
+      "backend": "rust",
+      "first_request_ms": 3569.445,
+      "idle_wait_ms": 2409.032,
+      "inactive_rss_bytes": 494215168,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4199.446,
+      "wake_request_ms": 2982.531,
+      "workload": "hello"
+    },
+    {
+      "active_rss_bytes": 559263744,
+      "backend": "rust",
+      "first_request_ms": 4682.141,
+      "idle_wait_ms": 2353.627,
+      "inactive_rss_bytes": 547078144,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4200.572,
+      "wake_request_ms": 3972.087,
+      "workload": "numpy"
+    },
+    {
+      "active_rss_bytes": 515383296,
+      "backend": "rust",
+      "first_request_ms": 3643.904,
+      "idle_wait_ms": 2422.719,
+      "inactive_rss_bytes": 509566976,
+      "n": 3,
+      "resident_cells_after_idle": [
+        0,
+        0,
+        0
+      ],
+      "startup_ms": 4191.82,
+      "wake_request_ms": 2987.571,
+      "workload": "counter"
+    }
+  ],
+  "latency": {
+    "javascript": {
+      "counter": {
+        "cold": {
+          "median_ms": 2986.776,
+          "n": 4,
+          "p95_ms": 3002.798
+        },
+        "warm": {
+          "median_ms": 10.823,
+          "n": 400,
+          "p95_ms": 13.584
+        }
+      },
+      "hello": {
+        "cold": {
+          "median_ms": 3693.505,
+          "n": 4,
+          "p95_ms": 3774.469
+        },
+        "warm": {
+          "median_ms": 10.338,
+          "n": 400,
+          "p95_ms": 13.526
+        }
+      },
+      "numpy": {
+        "cold": {
+          "median_ms": 4039.325,
+          "n": 4,
+          "p95_ms": 4142.885
+        },
+        "warm": {
+          "median_ms": 10.376,
+          "n": 400,
+          "p95_ms": 12.775
+        }
+      }
+    },
+    "rust": {
+      "counter": {
+        "cold": {
+          "median_ms": 3014.288,
+          "n": 4,
+          "p95_ms": 3037.81
+        },
+        "warm": {
+          "median_ms": 10.853,
+          "n": 400,
+          "p95_ms": 12.624
+        }
+      },
+      "hello": {
+        "cold": {
+          "median_ms": 3648.618,
+          "n": 4,
+          "p95_ms": 3791.229
+        },
+        "warm": {
+          "median_ms": 10.438,
+          "n": 400,
+          "p95_ms": 13.599
+        }
+      },
+      "numpy": {
+        "cold": {
+          "median_ms": 4039.081,
+          "n": 4,
+          "p95_ms": 4172.866
+        },
+        "warm": {
+          "median_ms": 10.664,
+          "n": 400,
+          "p95_ms": 12.86
+        }
+      }
+    }
+  },
+  "memory": "               total        used        free      shared  buff/cache   available\nMem:     16766414848  1142587392 12275986432    49590272  3747803136 15623827456\nSwap:     3221221376           0  3221221376\n",
+  "reload": [
+    {
+      "backend": "javascript",
+      "edit_to_ready_ms": 8578.828,
+      "edit_to_result_ms": 12222.968,
+      "first_new_request_ms": 3665.321,
+      "initial_first_request_ms": 3710.36,
+      "initial_ready_ms": 8219.816,
+      "n": 3
+    },
+    {
+      "backend": "rust",
+      "edit_to_ready_ms": 8383.547,
+      "edit_to_result_ms": 11946.824,
+      "first_new_request_ms": 3594.348,
+      "initial_first_request_ms": 3584.537,
+      "initial_ready_ms": 8164.315,
+      "n": 3
+    }
+  ],
+  "run_url": "https://github.com/sambhav/celld-python/actions/runs/33979877044",
+  "scaling": [
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.87,
+      "median_rps": 93.37566110169224,
+      "median_rss_bytes": 769183744,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "small"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.8700310482400159,
+      "median_cpu_cores": 1.454,
+      "median_rps": 162.47944861681955,
+      "median_rss_bytes": 818323456,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.7400620964800317,
+      "workload": "small"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.7509657252192591,
+      "median_cpu_cores": 2.081,
+      "median_rps": 280.4876842282403,
+      "median_rss_bytes": 893829120,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 3.0038629008770363,
+      "workload": "small"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.47488169007625697,
+      "median_cpu_cores": 2.504,
+      "median_rps": 354.73913404767535,
+      "median_rss_bytes": 1040420864,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 3.7990535206100557,
+      "workload": "small"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.882,
+      "median_rps": 90.50561748388462,
+      "median_rss_bytes": 772665344,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "small"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.8436824940298207,
+      "median_cpu_cores": 1.416,
+      "median_rps": 152.71601016502544,
+      "median_rss_bytes": 733237248,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.6873649880596413,
+      "workload": "small"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.4405372961107893,
+      "median_cpu_cores": 1.43,
+      "median_rps": 159.48440003675162,
+      "median_rss_bytes": 799281152,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.7621491844431572,
+      "workload": "small"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.22120976128898015,
+      "median_cpu_cores": 1.428,
+      "median_rps": 160.16580831137492,
+      "median_rss_bytes": 795193344,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.7696780903118412,
+      "workload": "small"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 1.184,
+      "median_rps": 5.026732239421582,
+      "median_rss_bytes": 727531520,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "cpu"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5097717785452196,
+      "median_cpu_cores": 1.192,
+      "median_rps": 5.1249724679210695,
+      "median_rss_bytes": 818151424,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.0195435570904392,
+      "workload": "cpu"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.25887090679684516,
+      "median_cpu_cores": 1.282,
+      "median_rps": 5.205098932176004,
+      "median_rss_bytes": 845168640,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.0354836271873806,
+      "workload": "cpu"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.12807452512653517,
+      "median_cpu_cores": 1.248,
+      "median_rps": 5.150370756017311,
+      "median_rss_bytes": 1083572224,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1.0245962010122813,
+      "workload": "cpu"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 1.211,
+      "median_rps": 4.995812777505476,
+      "median_rss_bytes": 749346816,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "cpu"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5124164994453422,
+      "median_cpu_cores": 1.206,
+      "median_rps": 5.119873790667336,
+      "median_rss_bytes": 734617600,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0248329988906844,
+      "workload": "cpu"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.25609106961097516,
+      "median_cpu_cores": 1.298,
+      "median_rps": 5.1175321510702165,
+      "median_rss_bytes": 759750656,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0243642784439007,
+      "workload": "cpu"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.1278532495639854,
+      "median_cpu_cores": 1.226,
+      "median_rps": 5.109847182538837,
+      "median_rss_bytes": 780070912,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.022825996511883,
+      "workload": "cpu"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.362,
+      "median_rps": 13.28445288994151,
+      "median_rss_bytes": 748716032,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 1,
+      "workload": "waiting"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 1.077479483712382,
+      "median_cpu_cores": 0.417,
+      "median_rps": 28.62745088251128,
+      "median_rss_bytes": 750653440,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 2.154958967424764,
+      "workload": "waiting"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 1.085477667133464,
+      "median_cpu_cores": 0.667,
+      "median_rps": 57.67990772847246,
+      "median_rss_bytes": 891908096,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 4.341910668533856,
+      "workload": "waiting"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 1.1039045290842,
+      "median_cpu_cores": 0.981,
+      "median_rps": 117.31814169289699,
+      "median_rss_bytes": 1083572224,
+      "mode": "independent",
+      "n": 3,
+      "speedup": 8.8312362326736,
+      "workload": "waiting"
+    },
+    {
+      "clients": 1,
+      "linear_efficiency": 1,
+      "median_cpu_cores": 0.354,
+      "median_rps": 13.399222270281504,
+      "median_rss_bytes": 768192512,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1,
+      "workload": "waiting"
+    },
+    {
+      "clients": 2,
+      "linear_efficiency": 0.5442130024155327,
+      "median_cpu_cores": 0.314,
+      "median_rps": 14.584061963485935,
+      "median_rss_bytes": 787144704,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0884260048310654,
+      "workload": "waiting"
+    },
+    {
+      "clients": 4,
+      "linear_efficiency": 0.27048439101273847,
+      "median_cpu_cores": 0.378,
+      "median_rps": 14.497121903285661,
+      "median_rss_bytes": 749088768,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0819375640509539,
+      "workload": "waiting"
+    },
+    {
+      "clients": 8,
+      "linear_efficiency": 0.13597953521113906,
+      "median_cpu_cores": 0.337,
+      "median_rps": 14.57616013202898,
+      "median_rss_bytes": 780599296,
+      "mode": "shared",
+      "n": 3,
+      "speedup": 1.0878362816891125,
+      "workload": "waiting"
+    }
+  ],
+  "scaling_config": {
+    "celld": "0.4.0",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_count": 4,
+    "stateless_isolates": "celld default (available CPUs)",
+    "store": "local SQLite development object store",
+    "v8_heap_limit_mb": 256
+  },
+  "startup": {
+    "javascript": {
+      "median_ms": 4198.286,
+      "n": 4
+    },
+    "rust": {
+      "median_ms": 4199.07,
+      "n": 4
+    }
+  },
+  "tested_sha": "c8de6413156726462d67d26eeb955ff55088f834"
+}

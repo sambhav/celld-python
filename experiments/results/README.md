@@ -1,5 +1,26 @@
 # Measured results
 
+## Native packing improvement
+
+[GitHub run](https://github.com/sambhav/celld-python/actions/runs/33981405520) · source `2edc509b86de54574eadc92cd7e56926a61f47d3` · [summary JSON](2026-09-05-packing.json)
+
+The complete patched celld binary built successfully; all five Rust parser/placement/retirement checks and all four actual-celld Python integration cases passed before the benchmark. This runner has two physical AMD EPYC 7763 cores and four logical CPUs. All configurations use the identical patched binary with celld’s `lab` profile (thin LTO), eight independent CPU workers and eight clients. Each has three 10-second samples after four warmup calls per key.
+
+| Cells per isolate | Requests/sec | Observed sample range | Speedup | Logical CPU cores used | Active RSS (MiB) | Idle RSS after 5 s (MiB) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 32 | 5.37 | 5.28–5.42 | 1.00× | 1.05 | 905.9 | 904.3 |
+| 2 | 11.50 | 11.35–11.73 | 2.14× | 3.92 | 1036.7 | 1035.1 |
+| 1 | 11.48 | 11.47–11.62 | 2.14× | 3.93 | 1218.4 | 1217.4 |
+
+**Two cells per isolate is the best tested CPU tradeoff here: 2.14× throughput for 14.4% more active RSS than the default density.** One cell per isolate provides no additional measured throughput and uses about 182 MiB more memory. These are medians and observed three-sample ranges, not confidence intervals or a universal optimum. Different hardware, cell counts and workloads need their own measurement.
+
+The patch is an opt-in `CELLD_MAX_CELLS_PER_ISOLATE` setting, limited to 1–32 and defaulting to 32. It preserves packing order and retirement logic; this is a density change, not live migration or a new scheduler. It changes no protocol, state format, or external service requirement. The SDK continues to work with the stock official celld release; the new setting requires the optional patch. See [implementation and reproduction](../packing).
+
+Lower density does **not** solve idle memory retention: every post-eviction checkpoint verifies zero Python cells, but RSS remains near its active level five seconds later. It increases CPU parallelism while retaining the existing eviction behavior. Node-wide density is also a coarse setting for a mixed CPU/I/O fleet; the experiment does not establish that lowering it globally is a better default.
+
+Do not compare this lab-profile binary’s absolute numbers against the official-release runs below, which used a different runner and build profile. The density speedup above is entirely within one run and one binary.
+
+
 ## Worker scaling on stock celld
 
 [GitHub run](https://github.com/sambhav/celld-python/actions/runs/33979110661) · source `29bac2e239c8464bdca86f43d12a3e7ee4be034d` · [summary JSON](2026-09-05-long-sweep.json)
@@ -30,7 +51,9 @@ Eight clients and eight independent CPU keys are held constant. Nodes share one 
 
 Two processes nearly double throughput. Four consume almost all four logical CPUs but deliver only 2.10× the one-process throughput. The runner has two physical cores with SMT, so this is not a four-independent-core experiment. CPU sharing and additional runtime/replication overhead can both contribute to the plateau. This result does not measure adding physical machines.
 
-An [optional native density experiment](../packing) tests lowering the per-isolate ceiling while preserving packing and retirement. Its full native build and performance comparison are in progress; no patched-runtime speedup is claimed here.
+A [second run](https://github.com/sambhav/celld-python/actions/runs/33979877044) ([summary JSON](2026-09-05-long-sweep-repeat.json)) reproduces the one-process split: eight CPU cells give 1.02× throughput, versus 8.83× for independent async waits. Two processes give 1.95× CPU throughput, while four give 1.78×. More processes on this fixed host provide no reliable benefit past two. Each ratio is relative to its own run’s baseline; results from different runners are not pooled.
+
+An [optional native density experiment](../packing) tests lowering the per-isolate ceiling while preserving packing and retirement. Its full native build and same-binary comparison succeeded; see the native packing results above.
 
 ## Rust bridge decision
 

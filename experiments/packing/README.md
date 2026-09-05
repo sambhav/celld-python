@@ -38,8 +38,11 @@ remote S3 is not measured.
 The report records throughput, CPU consumption, active RSS and memory five
 seconds after explicitly evicting all eight cells. The expected placement for
 eight cells is one, four and eight cell isolates respectively. The pure Rust
-tests verify that placement boundary and that retiring heaps remain excluded;
-the runtime benchmark will determine the throughput and memory tradeoff.
+tests verify that placement boundary and that retiring heaps remain excluded.
+The [completed GitHub comparison](../results#native-packing-improvement) found
+2.14× CPU throughput at density 2 with 14.4% more active RSS. Density 1 provided
+no additional throughput and used more memory. Density 2 is a starting point
+for CPU-heavy pools on similar hardware, not a universal replacement for 32.
 
 The SDK's host and its Pyodide loader are unchanged. More isolates still cannot
 make one state key execute concurrently or create more host CPU resources.

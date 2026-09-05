@@ -25,7 +25,7 @@ Two Rust regression tests check access/open/close-read events and preservation
 of edit/create/delete/rename events. Both passed in an isolated Rust harness
 using the exact helper/test source and notify 8.2.0. A full celld build in the
 initial development environment was blocked by a jemalloc C configuration
-failure; a patched celld binary has not been validated here.
+failure; a binary including the watcher patch has not been validated here.
 
 The Python SDK runs on the stock release. Its local supervisor works around the
 watcher issue and uses celld's native preserve shutdown. This patch is optional,
