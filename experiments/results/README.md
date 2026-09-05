@@ -179,3 +179,15 @@ Wake requests succeed and rebuild the interpreter. The broader lifecycle test al
 - The older worker-scaling async workload is a timer. The quote benchmark above uses an actual local HTTP upstream with controlled delay.
 - Early runs capped stateless isolates at one. They are excluded from the default-pool table above. The [earlier short default-pool sweep](2026-09-05-short-sweep.json) used 3-second samples and a smaller CPU calculation; it supports the qualitative split but is not pooled with these samples.
 - The older scaling/lifecycle source revisions predate the package/import rename to `celld` and CLI rename to `pycelld`. The rename has separate framework, actual-celld and installed-wheel verification.
+
+## Matched TypeScript workers
+
+[Same-run TypeScript/Python comparison](2026-09-05-typescript-throughput.md),
+from [GitHub run 33991660727](https://github.com/sambhav/celld-python/actions/runs/33991660727):
+TypeScript with Zod reaches 30,082 hello requests/sec, 8,212 requests/sec for a
+10 ms HTTP lookup, and 6,136 requests/sec for a 50 ms lookup. Python on the same
+respective runners reaches 5,666, 2,042, and 1,707 requests/sec. These are medians
+of three 15-second confirmations, all successful; runner models differ between
+workloads. See the report for tail latency, CPU, memory, exact revisions and
+limits. Raw data: [hello](2026-09-05-typescript-hello.json),
+[10 ms](2026-09-05-typescript-io10.json), [50 ms](2026-09-05-typescript-io50.json).
