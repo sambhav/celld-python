@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "celld-python"
+version = "0.1.0"
+description = "Typed Python HTTP workers on an S3-backed celld fleet"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.12,<3", "packaging>=24"]
+
+[project.scripts]
+celld-py = "celld_python.cli:main"
+
+[tool.setuptools.package-data]
+celld_python = ["runtime/*.js"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
