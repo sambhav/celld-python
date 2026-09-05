@@ -116,7 +116,8 @@ def main():
     project = build(target)
     publish_local(project, HERE / "build/scaling-publish.log")
     report = {"cpu_count":os.cpu_count(),"cpu_affinity":sorted(os.sched_getaffinity(0)),
-              "celld":"0.4.0","store":"local SQLite development object store","samples":[]}
+              "celld":"0.4.0","stateless_isolates":"celld default (available CPUs)",
+              "v8_heap_limit_mb":256,"store":"local SQLite development object store","samples":[]}
     with measured_node(project, HERE / "build/scaling-node.log") as running:
         for round_ in range(args.rounds):
             widths = [1,2,4,8] if round_ % 2 == 0 else [8,4,2,1]

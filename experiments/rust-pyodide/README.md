@@ -30,7 +30,10 @@ store. Every measured call executes; receipts are never replayed. Stateless call
 use one stable slot. Raw samples, CPU/RAM details and celld logs are artifacts.
 Runner hardware can differ between jobs, so compare within a run.
 
-Cold timings start with the first Python request after process startup. Warm
+The comparison's cold timings are each app's first request in a process; later
+apps reuse the already compiled core. The separate lifecycle benchmark starts
+a fresh process for each app and requires public health readiness before timing
+the first call. Warm
 timings include localhost HTTP, Python, SQLite state/receipts and the response
 durability gate. They are not a Python-only microbenchmark. The Rust experiment
 also validates replies in Rust, so it is an implementation comparison, not an
@@ -55,3 +58,6 @@ must be successful, with no replay or lost/duplicated state increments. Samples
 include throughput, latency, celld process CPU and RSS. Cells are evicted between
 scenarios so earlier workers do not accumulate and change placement. This runs
 on one fixed CPU allocation: it tests worker concurrency, not adding machines.
+Current runs use celld's default stateless isolate limit (available CPUs), with
+a 256 MiB V8 heap limit per isolate. Runs before this correction explicitly used
+one stateless isolate and must not be presented as default-pool scaling results.

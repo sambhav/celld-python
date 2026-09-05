@@ -25,7 +25,7 @@ def environment():
     for key in tuple(env):
         if key.startswith("CELLD_") or key in {"AWS_DEFAULT_REGION", "AWS_REGION"}:
             env.pop(key, None)
-    env.update(CELLD_V8_HEAP_LIMIT_MB="256", CELLD_MAX_STATELESS_ISOLATES="1")
+    env.update(CELLD_V8_HEAP_LIMIT_MB="256")
     return env
 
 

@@ -1,8 +1,9 @@
 """Compare complete celld requests, alternating backends to reduce ordering bias.
 
 This is a local development-store experiment, not a production throughput claim.
-Build/publish/startup are outside timings; cold means the first Python invocation
-after node startup. Call IDs target one stable stateless slot and never replay.
+Build/publish/startup are outside request timings; cold means the first invocation
+of each app. Later apps reuse the compiled core. The lifecycle benchmark measures
+each app alone in a fresh process. Call IDs target one slot and never replay.
 """
 import argparse
 import json

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import time
 import urllib.request
+import urllib.error
 from contextlib import contextmanager
 
 from celld_python.dev import environment, free_port, stop
@@ -39,12 +40,18 @@ def measured_node(project, log_path, *, idle_seconds=None):
                 contents = log_path.read_text()
                 internal = re.search(r"^celld internal listening on (127\.0\.0\.1:\d+)", contents, re.M)
                 if "celld listening on" in contents and internal:
-                    # Readiness is a successful operator response, not just a log message.
+                    # Require both the operator census and public readiness.
                     running = RunningNode(process, port, internal[1], 0)
-                    running.state()
-                    running.startup_ms = (time.perf_counter_ns() - start) / 1_000_000
-                    yield running
-                    return
+                    try:
+                        running.state()
+                        with urllib.request.urlopen(f"http://127.0.0.1:{port}/.well-known/celld/health", timeout=2) as response:
+                            ready = response.status == 200
+                    except (urllib.error.URLError, TimeoutError):
+                        ready = False
+                    if ready:
+                        running.startup_ms = (time.perf_counter_ns() - start) / 1_000_000
+                        yield running
+                        return
                 if process.poll() is not None:
                     raise RuntimeError(contents)
                 time.sleep(.002)

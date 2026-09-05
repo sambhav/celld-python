@@ -20,7 +20,8 @@ def main():
               "head_sha":os.environ.get("BENCH_HEAD_SHA", ""), "tested_sha":os.environ.get("GITHUB_SHA", ""),
               "cpu":(directory / "cpu.txt").read_text(), "memory":(directory / "memory.txt").read_text(),
               "latency":comparison["summary"], "extra_artifact_bytes":comparison["extra_artifact_bytes"],
-              "startup":{}, "idle":[], "reload":[], "scaling":[]}
+              "startup":{}, "idle":[], "reload":[], "scaling":[],
+              "scaling_config":{k:v for k,v in scaling.items() if k not in ("samples", "summary")}}
     for backend in ("javascript", "rust"):
         rows = [r for r in comparison["startups"] if r["backend"] == backend]
         report["startup"][backend] = {"n":len(rows),"median_ms":median(rows,"startup_ms")}
@@ -45,6 +46,7 @@ def main():
     lines = ["# celld Python runtime benchmarks", "", f"[GitHub run]({report['run_url']}) · source `{report['head_sha']}`", "",
         "One fixed GitHub runner; local SQLite object store, no external S3. Raw samples and logs are attached as artifacts.", "",
         "## Warm calls and first Python requests", "",
+        "Per-app first requests; later apps in the process reuse the compiled core. The lifecycle table measures fresh processes.", "",
         "| Backend | App | First request median (ms) | Warm median (ms) | Warm p95 (ms) |",
         "|---|---|---:|---:|---:|"]
     for backend, apps in report["latency"].items():
@@ -60,6 +62,7 @@ def main():
     for r in report["reload"]:
         lines.append(f"| {r['backend']} | {r['edit_to_ready_ms']:.1f} | {r['first_new_request_ms']:.1f} | {r['edit_to_result_ms']:.1f} |")
     lines += ["", "## Worker scaling", "", "Independent keys versus one serialized key. More clients do not add host CPUs. Warm workers, no replay, all results checked.", "",
+        f"Stateless isolate limit: {scaling.get('stateless_isolates', 'one (legacy harness)')}. V8 heap limit: 256 MiB per isolate.", "",
         "| Work | Key mode | Clients | Requests/sec | Speedup | Efficiency | CPU cores used |", "|---|---|---:|---:|---:|---:|---:|"]
     for r in report["scaling"]:
         lines.append(f"| {r['workload']} | {r['mode']} | {r['clients']} | {r['median_rps']:.1f} | {r['speedup']:.2f}× | {r['linear_efficiency']:.0%} | {r['median_cpu_cores']:.2f} |")

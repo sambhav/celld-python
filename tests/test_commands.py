@@ -90,3 +90,12 @@ def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, mon
     assert locked == [project]
     assert len(runs) == 2 and all(options["idle_timeout"] == 60 for _, options in runs)
     assert (project / "celld.lock.json").read_text() == "existing pin"
+
+
+def test_dev_uses_celld_default_parallelism_without_inheriting_fleet_settings(monkeypatch):
+    from celld_python.dev import environment
+    monkeypatch.setenv("CELLD_MAX_STATELESS_ISOLATES", "1")
+    monkeypatch.setenv("CELLD_BUCKET", "production")
+    env = environment()
+    assert "CELLD_MAX_STATELESS_ISOLATES" not in env
+    assert "CELLD_BUCKET" not in env
