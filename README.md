@@ -90,10 +90,11 @@ per-call `local` dictionary for middleware. `scope` and `host` come exclusively
 from the platform adapter. Caller data and declared client information are
 untrusted; schema validation does not authenticate them.
 
-Clients preserve Pydantic model shapes, aliases, common constraints, unions,
+Clients preserve Pydantic model shapes, model-field aliases, common constraints, unions,
 lists and literals. Custom Python validators stay on the server. Unsupported
 structural schemas fail generation explicitly. Injected dependencies and state
-never become client arguments. Regenerate a saved contract with:
+never become client arguments. Function argument names are the public contract;
+put aliased fields in a Pydantic model. Regenerate a saved contract with:
 
 ```sh
 celld-py client hello/.celld-python/build/hello.schema.json --out hello_client.py
@@ -265,7 +266,8 @@ export async function resolveContext(request, env, operation) {
 ```
 
 The host overwrites scope/host headers before invoking Python. The resolver
-also controls access to schemas. The default resolver supplies scope `default`
+also controls access to schemas. Keep host attributes stable across retries;
+per-attempt tracing belongs in `Context.local`. The default resolver supplies scope `default`
 and empty attributes, with no authentication. The native Python client accepts
 an optional `token` for a platform that uses Bearer authentication.
 

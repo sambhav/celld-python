@@ -60,7 +60,7 @@ class Client:
         self.endpoint = endpoint.rstrip("/")
         self.timeout, self.retries, self._token = timeout, retries or RetryPolicy(), token
         self._context = self._encode_context(context)
-        self._client_info = json.dumps((client_info or ClientInfo()).model_dump(), ensure_ascii=True, separators=(",", ":"))
+        self._client_info = json.dumps((client_info or ClientInfo()).model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
         if len(self._client_info) > 4096:
             raise ValueError("Client information exceeds 4 KiB")
         self._call_id = None

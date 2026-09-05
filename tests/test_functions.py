@@ -84,3 +84,14 @@ async def test_invalid_context_and_unknown_arguments_fail_before_execution():
                           (b'{"extra":1}', [("x-celld-context", '{"actor":"a"}')])]:
         response, state = await app.dispatch(Request("POST", "/hello", body=data, header_items=headers))
         assert response.status == 422 and state is None
+
+
+def test_ambiguous_function_field_aliases_fail_at_build_time():
+    app = Worker()
+
+    @app.function
+    def hello(name: Annotated[str, Field(alias="user")]):
+        return name
+
+    with pytest.raises(ValueError, match="Python names"):
+        app.schema()

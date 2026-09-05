@@ -11,6 +11,7 @@ from typing import Annotated, Any, Callable, Generic, TypeVar, get_args, get_ori
 from urllib.parse import parse_qs, unquote
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, create_model
+from pydantic.fields import FieldInfo
 
 T = TypeVar("T", bound=BaseModel)
 _JSON = TypeAdapter(Any)
@@ -152,6 +153,10 @@ def _inputs(provider):
                     raise ValueError(f"Conflicting dependency argument: {field_name}")
             fields.update(nested)
         elif annotation not in (Request, Invocation, Context) and get_origin(annotation) not in (State, Context):
+            if isinstance(param.default, FieldInfo):
+                raise ValueError("Use Annotated[T, Field(...)] for constraints and ordinary Python parameter defaults")
+            if any(isinstance(x, FieldInfo) and (x.alias is not None or x.validation_alias is not None) for x in extras):
+                raise ValueError("Function arguments use their Python names; put aliased fields in a Pydantic model")
             schema = Annotated[annotation, *extras] if extras else annotation
             value = (schema, ... if param.default is inspect.Parameter.empty else param.default)
             if name in fields and fields[name] != value:
@@ -238,7 +243,7 @@ class Worker:
         return self.route("DELETE", path, **options)
 
     def middleware(self, function):
-        """First registered middleware runs outermost, including on 404/422."""
+        """First registered middleware runs outermost."""
         self.middlewares.append(function)
         return function
 

@@ -73,3 +73,17 @@ async def test_async_dynamic_client():
 def test_endpoint_validation(endpoint):
     with pytest.raises(ValueError):
         Client(endpoint)
+
+
+def test_client_information_serializes_pydantic_json_values_and_unicode():
+    from datetime import date
+    client = Client("http://localhost", client_info=ClientInfo(name="日本語", metadata={"date": date(2026, 1, 1)}))
+    assert client._client_info.isascii()
+    assert json.loads(client._client_info) == {"name": "日本語", "version": "", "metadata": {"date": "2026-01-01"}}
+
+
+def test_function_and_self_are_valid_remote_argument_names():
+    client = Client("http://localhost")
+    client._opener = Transport(Reply({"result": True}))
+    assert client.echo(function="name", self="value") is True
+    assert json.loads(client._opener.requests[0].data) == {"function": "name", "self": "value"}
