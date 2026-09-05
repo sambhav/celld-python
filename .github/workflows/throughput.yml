@@ -10,24 +10,24 @@ env:
   CELLD_NATIVE_SHA: 1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec
 jobs:
   native:
-    if: github.event_name == 'workflow_dispatch' || contains(fromJSON('["benchmark-throughput","benchmark-throughput-tuned","benchmark-throughput-stateless","benchmark-throughput-final"]'), github.event.label.name)
+    if: github.event_name == 'workflow_dispatch' || contains(fromJSON('["benchmark-throughput","benchmark-throughput-tuned","benchmark-throughput-stateless","benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name)
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
       CARGO_BUILD_JOBS: '2'
     steps:
       - uses: actions/checkout@v4
-        if: github.event.label.name != 'benchmark-throughput-final'
+        if: ${{ !contains(fromJSON('["benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name) }}
         with:
           repository: sambhav/celld
           ref: ${{ env.CELLD_NATIVE_SHA }}
           path: upstream
-      - if: github.event.label.name != 'benchmark-throughput-final'
+      - if: ${{ !contains(fromJSON('["benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name) }}
         run: |
           rustup toolchain install 1.98.1 --profile minimal
           rustup default 1.98.1
       - uses: actions/cache@v4
-        if: github.event.label.name != 'benchmark-throughput-final'
+        if: ${{ !contains(fromJSON('["benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name) }}
         with:
           path: |
             ~/.cargo/registry
@@ -35,14 +35,14 @@ jobs:
             upstream/target
           key: celld-density-a52f990-1.98.1-${{ env.CELLD_NATIVE_SHA }}
           restore-keys: celld-density-a52f990-1.98.1-
-      - if: github.event.label.name != 'benchmark-throughput-final'
+      - if: ${{ !contains(fromJSON('["benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name) }}
         run: |
           test "$(git -C upstream rev-parse HEAD)" = "$CELLD_NATIVE_SHA"
           cargo test --manifest-path upstream/tools/packing-checks/Cargo.toml --locked
           cargo build --manifest-path upstream/Cargo.toml -p celld --profile lab --locked
           upstream/target/lab/celld --version
       - uses: actions/download-artifact@v4
-        if: github.event.label.name == 'benchmark-throughput-final'
+        if: contains(fromJSON('["benchmark-throughput-final","benchmark-throughput-typescript"]'), github.event.label.name)
         with:
           name: throughput-native
           path: upstream/target/lab
@@ -94,11 +94,18 @@ jobs:
           git diff --exit-code -- examples/celld.lock.json
           cd experiments/throughput/load
           go test -race ./...
+      - if: github.event.label.name == 'benchmark-throughput-typescript'
+        working-directory: experiments/throughput/typescript
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
       - name: Screen concurrency, then repeat each best configuration
         env:
           BENCH_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          if [ "${{ github.event.label.name }}" = "benchmark-throughput-tuned" ]; then
+          if [ "${{ github.event.label.name }}" = "benchmark-throughput-typescript" ]; then
+            python experiments/throughput/measure.py --io-delay-ms ${{ matrix.delay }} --clients 1 16 64 256 512 1024 --densities 2 --modes python-stateless typescript-stateless bare-stateless
+          elif [ "${{ github.event.label.name }}" = "benchmark-throughput-tuned" ]; then
             git fetch origin 9e26fa34c5e5611801d3203507e1c750d6e8a60d
             python experiments/throughput/measure.py --io-delay-ms ${{ matrix.delay }} --clients 1 16 64 256 512 1024 --densities 32 2 --modes baseline-durable python-durable baseline-concurrent python-concurrent bare-stateless
           elif [ "${{ github.event.label.name }}" = "benchmark-throughput-stateless" ]; then

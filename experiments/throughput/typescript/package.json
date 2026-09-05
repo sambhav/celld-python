@@ -1,0 +1,9 @@
+{
+  "name": "celld-throughput-typescript",
+  "private": true,
+  "type": "module",
+  "dependencies": {"zod": "4.5.4"},
+  "scripts": {
+    "test": "esbuild worker.test.ts --bundle --platform=node --format=esm --outfile=build/worker.test.mjs && node --test build/worker.test.mjs"
+  }
+}

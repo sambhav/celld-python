@@ -82,3 +82,16 @@ per app/scope in each native stateless isolate. It has zero Python cells, does
 not persist replay receipts, and rejects keyed state. The native stateless pool
 uses celld's CPU-based default size; the cell packing limit does not apply to
 this mode. All of this routing remains inside the benchmark builder.
+
+The `benchmark-throughput-typescript` label runs Python, TypeScript, and the bare
+JavaScript control on the same native stateless pool and runner per delay.
+`typescript/worker.ts` uses pinned Zod 4.5.4 input, upstream, context/client, and
+output schemas, middleware, and a per-invocation dependency cache. Quote constraints,
+default quantity, pricing request, response shape, and trace correlation match the
+Python workload. Hello uses a string argument/result in both languages. Zod and
+Pydantic have different coercion rules; the measured inputs are valid for both.
+TypeScript is bundled into JavaScript by esbuild; celld executes it in V8 without
+Node.js. This is a matched application implementation, not a TypeScript SDK.
+No receipts or state are used by either language. The minimal bare control omits
+these validation/middleware/DI layers. The native binary is reused from run
+`33988408853`. Run `npm ci && npm test` in `typescript/` for correctness checks.

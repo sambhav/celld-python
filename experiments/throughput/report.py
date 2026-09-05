@@ -35,7 +35,7 @@ def markdown(reports):
             "| Mode | Packing limit | Clients | Requests/sec | Min–max | p50 ms | p95 ms | p99 ms | celld CPU cores | RSS MiB |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
         for r in summarize(report):
-            packing = "—" if r["mode"] in {"bare-stateless", "python-stateless"} else str(r["density"])
+            packing = "—" if r["mode"] in {"bare-stateless", "python-stateless", "typescript-stateless"} else str(r["density"])
             lines.append(f"| {r['mode']} | {packing} | {r['clients']} | {r['rps']:.1f} | {r['rps_min']:.1f}–{r['rps_max']:.1f} | {r['p50_ms']:.2f} | {r['p95_ms']:.2f} | {r['p99_ms']:.2f} | {r['server_cpu_cores']:.2f} | {r['rss_bytes']/2**20:.1f} |")
         lines.append("")
     lines += ["`baseline-*` embeds the dispatcher before validator/DI metadata caching. `python-durable` is the shipped SDK with caching and its replay guarantees. `python-concurrent` is a benchmark-only stateless experiment that removes receipts and the per-call concurrency gate. `python-stateless` runs Python directly in the native stateless isolate pool, with zero Python cells and no durable replay. Cell-based modes use 16 cells. `bare-stateless` executes JavaScript directly in celld. The concurrent experiment does not provide durable replay and is not a public SDK mode.", "",

@@ -21,6 +21,8 @@ from test_celld import publish_local
 from celld.build import build, lock
 from celld.dev import free_port
 
+STATELESS_MODES = {"bare-stateless", "python-stateless", "typescript-stateless"}
+
 SOURCE = '''from celld import App
 app = App
 @app.function
@@ -87,6 +89,15 @@ def templates(out, modes, upstream_url, baseline_ref):
                     source = source.replace(forward, "if(found.route.state_key)throw new Error('Stateless benchmark does not accept state');\n      const runtimeKey=JSON.stringify([scopeName,selected.app.name]);\n      let worker=statelessWorkers.get(runtimeKey);\n      if(!worker){worker=new PythonCell(undefined);statelessWorkers.set(runtimeKey,worker);}\n      return worker.fetch(forwarded);")
                     source = 'const statelessWorkers=new Map();\n' + source
                 host.write_text(source)
+        elif mode == "typescript-stateless":
+            target.mkdir()
+            entry = target / "index.ts"
+            entry.write_text("import {createWorker} from " + json.dumps(str(HERE / "typescript/worker.ts")) +
+                             ";\nexport default createWorker(" + json.dumps(upstream_url) + ");\n")
+            subprocess.run(["esbuild", str(entry), "--bundle", "--format=esm", "--platform=browser",
+                            "--target=es2022", "--outfile=" + str(target / "index.js")], check=True)
+            entry.unlink()
+            (target / "wrangler.json").write_text(json.dumps(dict(name="throughput", main="index.js", compatibility_date="2026-09-05")))
         else:
             target.mkdir()
             (target / "index.js").write_text((HERE / "bare.js").read_text().replace('__MODE__', mode.removeprefix("bare-")).replace('__UPSTREAM_URL__', upstream_url))
@@ -114,7 +125,7 @@ def main():
     import re
     assert re.fullmatch(r"[0-9a-f]{40}", args.baseline_ref)
     assert args.seconds > 0 and args.rounds > 0 and all(c > 0 for c in args.clients)
-    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent", "baseline-durable", "baseline-concurrent", "python-stateless"}
+    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent", "baseline-durable", "baseline-concurrent", "python-stateless", "typescript-stateless"}
     out = HERE / "build" / uuid.uuid4().hex[:12]
     out.mkdir(parents=True)
     binary = shutil.which("celld")
@@ -145,12 +156,13 @@ def main():
         go=subprocess.check_output(["go","version"], text=True).strip(), profile="lab (thin LTO)",
         store="local SQLite development object store; no remote S3", smoke=args.smoke,
         protocol="HTTP/1.1 keep-alive; closed loop; unique inputs and IDs; every reply checked; no retry/replay",
+        typescript_dependencies=json.loads((HERE / "typescript/package.json").read_text())["dependencies"] if "typescript-stateless" in args.modes else None,
         slots=16, seconds=args.seconds, rounds=args.rounds, io_delay_ms=args.io_delay_ms, samples=[], rejected=[])
     for round_ in range(args.rounds + args.confirm_rounds):
         phase = "screen" if round_ < args.rounds else "confirm"
         duration = args.seconds if phase == "screen" else args.confirm_seconds
         cases = [(mode,density,c) for mode in args.modes for density in args.densities
-                 if mode not in {"bare-stateless", "python-stateless"} or density == args.densities[0] for c in args.clients if mode in {"bare-stateless", "python-stateless"} or c <= args.max_cell_clients]
+                 if mode not in STATELESS_MODES or density == args.densities[0] for c in args.clients if mode in STATELESS_MODES or c <= args.max_cell_clients]
         if phase == "confirm":
             groups = {(s["mode"],s["density"]) for s in report["samples"]}
             cases = []
@@ -202,7 +214,7 @@ def main():
                         with urllib.request.urlopen(stats_url) as response: stats = json.load(response)
                         assert stats["completed"] == stats["requests"] == sample["requests"] and stats["active"]==0, (stats,sample)
                         sample.update(upstream=stats, upstream_cpu_cores=(cpu_seconds(upstream_process.pid)-upstream_cpu)/sample["elapsed_seconds"] if not args.smoke else 0)
-                    expected_cells = 0 if mode in {"bare-stateless", "python-stateless"} else 16
+                    expected_cells = 0 if mode in STATELESS_MODES else 16
                     assert sample["resident_cells"] == expected_cells, sample
                     assert sample["errors"] == 0 and sample["requests"] > 0
                     report["samples"].append(sample)
