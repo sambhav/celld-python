@@ -15,10 +15,11 @@ from pathlib import Path
 
 from bridge import HERE, build_rust, compile_runtime
 from celld_python.build import build
+from harness import measured_node
 
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
-from test_celld import node, publish_local, request
+from test_celld import publish_local, request
 
 
 def call_ids(prefix):
@@ -63,10 +64,13 @@ def main():
         projects[backend] = builder(ROOT / "examples/fleet.toml", directory)
         publish_local(directory, HERE / "build" / f"{backend}-publish.log")
     samples = []
+    startups = []
     for round_ in range(args.rounds):
         order = ("javascript", "rust") if round_ % 2 == 0 else ("rust", "javascript")
         for backend in order:
-            with node(projects[backend], HERE / "build" / f"{backend}-{round_}.log") as port:
+            with measured_node(projects[backend], HERE / "build" / f"{backend}-{round_}.log") as running:
+                port = running.port
+                startups.append({"backend":backend,"round":round_,"startup_ms":running.startup_ms})
                 ids = call_ids(uuid.uuid4().hex)
                 workloads = [
                     ("hello", "/hello/hello", {"name":"Sam"}, {}, lambda result, i: result == "Hello, Sam"),
@@ -96,7 +100,7 @@ def main():
     report = {"platform":platform.platform(), "python":platform.python_version(), "rounds":args.rounds,
               "calls_per_round":args.calls, "celld":"0.4.0", "pyodide":"314.0.6", "summary":summary,
               "extra_artifact_bytes":{p.name:p.stat().st_size for p in (HERE / "build").glob("rust_runtime*")},
-              "samples":samples}
+              "startups":startups, "samples":samples}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(summary, indent=2))

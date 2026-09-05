@@ -15,7 +15,7 @@ def compile_runtime():
                     "--target", "web", "--out-dir", str(HERE / "build"), "--out-name", "rust_runtime"], check=True)
 
 
-def build_rust(target, output, *, host=None):
+def build_rust(target, output=None, *, host=None):
     output = build(target, output, host=host)
     for name in ("rust_runtime.js", "rust_runtime_bg.wasm"):
         shutil.copyfile(HERE / "build" / name, output / name)
