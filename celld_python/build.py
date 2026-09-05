@@ -44,14 +44,14 @@ def configurations(target: Path):
         project = tomllib.loads((directory / "pyproject.toml").read_text())
         settings = project.get("tool", {}).get("celld-python", {})
         app = dict(name=entry["name"], mount=entry.get("mount", "/"),
-                   entrypoint=settings.get("entrypoint", "app:app"),
+                   entrypoint=settings.get("entrypoint", "app"),
                    source=settings.get("source", "src"),
                    dependencies=project["project"].get("dependencies", []),
                    wheels=settings.get("wheels", []))
         if not re.fullmatch(r"[a-z][a-z0-9_-]{0,62}", app["name"]):
             raise ValueError("App names must be lowercase URL-safe identifiers")
-        if not re.fullmatch(r"[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*:[a-zA-Z_]\w*", app["entrypoint"]):
-            raise ValueError("entrypoint must be module:attribute")
+        if not re.fullmatch(r"[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?::[a-zA-Z_]\w*)?", app["entrypoint"]):
+            raise ValueError("entrypoint must be module or module:attribute")
         if not app["mount"].startswith("/") or any(c in app["mount"] for c in "?#%{}"):
             raise ValueError("mount must be a literal absolute URL path")
         app["mount"] = app["mount"].rstrip("/") or "/"
@@ -211,14 +211,18 @@ def port_runtime(runtime: Path, output: Path):
     source = replace_once(source, 'WebAssembly.instantiateStreaming(n,s)',
                           'Promise.resolve({instance:new WebAssembly.Instance(_pythonWasm,s),module:_pythonWasm})')
     source = ('import _pythonWasm from "./pyodide.asm.wasm";\n'
+              'import {WebAssembly} from "./wasm.js";\n'
               'import {assetFetch as fetch} from "./assets.js";\n'
               'const process=undefined; const location="https://celld-python.invalid/runtime/";\n' + source)
     (output / "pyodide.mjs").write_text(source)
     source = (runtime / "pyodide.asm.mjs").read_text()
+    source = replace_once(source, 'import("ws")', 'Promise.reject(new Error("Node ws unavailable in celld"))')
     source = replace_once(source, 'var ENVIRONMENT_IS_NODE=globalThis.process?.versions?.node&&globalThis.process?.type!="renderer";',
                           'var ENVIRONMENT_IS_NODE=false;')
+    source = replace_once(source, 'var ENVIRONMENT_IS_WORKER=!!globalThis.WorkerGlobalScope;',
+                          'var ENVIRONMENT_IS_WORKER=true;')
     source = replace_once(source, 'typeof globalThis.MessageChannel=="function"', 'false')
-    (output / "pyodide.asm.mjs").write_text('import {assetFetch as fetch} from "./assets.js";\n' + source)
+    (output / "pyodide.asm.mjs").write_text('import {WebAssembly} from "./wasm.js";\nimport {assetFetch as fetch} from "./assets.js";\nconst location="https://celld-python.invalid/runtime/";\n' + source)
     shutil.copyfile(runtime / "pyodide.asm.wasm", output / "pyodide.asm.wasm")
 
 
@@ -239,7 +243,7 @@ def build(target: Path, output: Path | None = None):
     output.mkdir(parents=True, exist_ok=True)
     package = Path(__file__).parent
     port_runtime(runtime, output)
-    for file in ("host.js", "assets.js"):
+    for file in ("host.js", "assets.js", "wasm.js"):
         shutil.copyfile(package / "runtime" / file, output / file)
     assets = {"/runtime/python_stdlib.zip": base64.b64encode((runtime / "python_stdlib.zip").read_bytes()).decode()}
     manifest = []
@@ -263,7 +267,7 @@ def build(target: Path, output: Path | None = None):
             sources[relative] = path.read_text()
         manifest.append(dict(name=app["name"], mount=app["mount"], entrypoint=app["entrypoint"],
                              lock=spec, packages=list(spec["packages"]), sources=sources))
-    sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py")}
+    sdk = {"celld_python/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     (output / "manifest.js").write_text("export const apps=" + json.dumps(manifest) + ";\nexport const sdk=" + json.dumps(sdk) + ";\n")
     (output / "asset-data.js").write_text("export const assets=" + json.dumps(assets) + ";\n")
     (output / "wrangler.json").write_text(json.dumps(dict(name=name, main="host.js", compatibility_date="2026-09-05",

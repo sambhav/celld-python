@@ -28,8 +28,11 @@ wheels are rejected; use the pinned Pyodide catalog or matching Emscripten wheel
 - Seven Python framework tests pass, including the hello example, validation,
   dependency cleanup/caching, concurrent requests and state rollback.
 - A hello example bundles successfully for celld 0.4.0.
-- Actual Python bootstrap inside celld is still being brought up. The draft PR
-  does **not** yet claim a working end-to-end deployment.
+- A real celld 0.4.0 integration test passes: bundled Python and Pydantic,
+  hello/greet functions, validation errors, missing routes and method handling.
+- A version-pinned JavaScript adapter is sufficient; no celld fork is required
+  for the tested runtime. Function-only ergonomics and generated clients are
+  being added in the draft.
 
 ## Development
 

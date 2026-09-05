@@ -3,7 +3,7 @@ import { assets } from './asset-data.js';
 // Lexically scoped to the Pyodide loader. Never patches global fetch, and
 // never falls back to a CDN/PyPI: missing declared artifacts fail closed.
 export async function assetFetch(input) {
-  const url = new URL(typeof input === 'string' ? input : input.url);
+  const url = new URL(typeof input === 'string' ? input : input.url ?? String(input));
   if (url.origin !== 'https://celld-python.invalid') throw new Error(`Unbundled runtime URL: ${url}`);
   const data = assets[url.pathname];
   if (data === undefined) throw new Error(`Unbundled runtime asset: ${url.pathname}`);

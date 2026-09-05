@@ -65,10 +65,9 @@ async function boot(app) {
     py.FS.writeFile(path, source);
   }
   py.runPython("import sys; sys.path.insert(0, '/app')");
-  const [module, attribute] = app.entrypoint.split(':');
-  const imported = py.pyimport(module);
-  const worker = imported[attribute];
-  imported.destroy();
+  const sdkModule = py.pyimport('celld_python');
+  const worker = sdkModule.load_worker(app.entrypoint);
+  sdkModule.destroy();
   const routes = JSON.parse(worker.describe()).map(r => ({ ...r, regex: new RegExp(r.pattern) }));
   return { py, worker, routes };
 }
@@ -146,7 +145,16 @@ export default {
       const found = match(runtime, request.method, selected.path);
       if (found?.route.state_key) {
         const { route, match } = found;
-        const key = decodeURIComponent(match[route.names.indexOf(route.state_key) + 1]);
+        let key;
+        if (route.operation) {
+          const bytes = await readBody(request);
+          let args;
+          try { args = JSON.parse(new TextDecoder().decode(bytes)); }
+          catch { return Response.json({error:{code:'validation_error',message:'Arguments must be an object'}}, {status:422}); }
+          key = args?.[route.state_key];
+          if (typeof key !== 'string') return Response.json({error:{code:'validation_error',message:`${route.state_key} must be a string`}}, {status:422});
+          request = new Request(request.url, {method:request.method,headers:request.headers,body:bytes});
+        } else key = decodeURIComponent(match[route.names.indexOf(route.state_key) + 1]);
         if (key.length > 512) return Response.json({ detail: 'State key exceeds 512 characters' }, { status: 400 });
         // Revision deliberately excluded: state survives code deployments.
         const identity = JSON.stringify([selected.app.name, route.namespace, key]);

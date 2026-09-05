@@ -1,0 +1,16 @@
+name = "python-examples"
+
+[[apps]]
+name = "hello"
+path = "minimal"
+mount = "/hello"
+
+[[apps]]
+name = "counter"
+path = "counter"
+mount = "/counters"
+
+[[apps]]
+name = "math"
+path = "numpy"
+mount = "/math"

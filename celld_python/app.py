@@ -32,6 +32,21 @@ class HTTPError(Exception):
         super().__init__(str(detail))
 
 
+class Error(Exception):
+    """An expected application failure returned to the caller."""
+    def __init__(self, message: str, *, code: str = "application_error"):
+        self.code = code
+        super().__init__(message)
+
+
+@dataclass
+class Invocation:
+    function: str
+    arguments: dict[str, Any]
+    metadata: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class Request:
     method: str
@@ -108,6 +123,7 @@ class Route:
     state_model: type[BaseModel] | None
     state_key: str | None
     namespace: str | None
+    operation: str | None = None
 
 
 class Worker:
@@ -115,7 +131,7 @@ class Worker:
         self.routes: list[Route] = []
         self.middlewares: list[Callable] = []
 
-    def route(self, method: str, path: str, *, state_key=None, namespace=None):
+    def route(self, method: str, path: str, *, state_key=None, namespace=None, _operation=None):
         if not path.startswith("/") or "?" in path or "#" in path:
             raise ValueError("Routes must be absolute paths without query or fragment")
         names = re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", path)
@@ -135,8 +151,14 @@ class Worker:
             model = next(iter(models), None)
             if bool(model) != bool(state_key):
                 raise ValueError("State[T] and state_key must be declared together")
-            if state_key and state_key not in names:
+            if state_key and not _operation and state_key not in names:
                 raise ValueError("state_key must name a path parameter")
+            if state_key and _operation:
+                hints = get_type_hints(handler, include_extras=True)
+                if _annotation(hints.get(state_key))[0] is not str:
+                    raise ValueError("A function state key must name a required string argument")
+                if inspect.signature(handler).parameters[state_key].default is not inspect.Parameter.empty:
+                    raise ValueError("A function state key must be a required argument")
             if namespace and model is None:
                 raise ValueError("namespace requires state")
             ns = namespace or (model.__name__ if model else None)
@@ -144,7 +166,7 @@ class Worker:
                 if ns and r.namespace == ns and r.state_model is not model:
                     raise ValueError("Routes in one namespace must use the same state model")
             self.routes.append(Route(method.upper(), path, handler, re.compile(pattern), names,
-                                     model, state_key, ns))
+                                     model, state_key, ns, _operation))
             return handler
         return register
 
@@ -168,9 +190,15 @@ class Worker:
         self.middlewares.append(function)
         return function
 
+    def function(self, handler=None, *, key=None, namespace=None):
+        def register(function):
+            return self.route("POST", "/" + function.__name__, state_key=key,
+                              namespace=namespace, _operation=function.__name__)(function)
+        return register(handler) if handler is not None else register
+
     def describe(self) -> str:
         return json.dumps([dict(method=r.method, path=r.path, pattern=r.regex.pattern,
-                                names=r.names, state_key=r.state_key, namespace=r.namespace)
+                                names=r.names, state_key=r.state_key, namespace=r.namespace, operation=r.operation)
                            for r in self.routes])
 
     def match(self, request: Request) -> Route:
@@ -189,6 +217,22 @@ class Worker:
     async def dispatch(self, request: Request, state_json: str | None = None) -> tuple[Response, str | None]:
         state = None
         committed = None
+        try:
+            matched = self.match(request)
+        except HTTPError:
+            matched = None
+        invocation = None
+        if matched and matched.operation:
+            try:
+                arguments = request.json() if request.body else {}
+                if not isinstance(arguments, dict):
+                    raise HTTPError(422, "Arguments must be an object")
+                metadata = json.loads(request.headers.get("x-celld-metadata", "{}"))
+                if not isinstance(metadata, dict):
+                    raise HTTPError(422, "Metadata must be an object")
+                invocation = Invocation(matched.operation, arguments, metadata)
+            except (HTTPError, ValueError) as error:
+                return Response.json({"error": {"code": "validation_error", "message": str(error)}}, 422), None
         async with AsyncExitStack() as stack:
             cache = {}
 
@@ -206,10 +250,19 @@ class Worker:
                         value = await resolve(dep.provider)
                     elif annotation is Request:
                         value = request
+                    elif annotation is Invocation:
+                        value = invocation
                     elif get_origin(annotation) is State:
                         value = state
                     else:
-                        if name in request.path_params:
+                        if invocation is not None:
+                            if name in invocation.arguments:
+                                raw = invocation.arguments[name]
+                            elif param.default is not inspect.Parameter.empty:
+                                raw = param.default
+                            else:
+                                raise HTTPError(422, f"Missing argument: {name}")
+                        elif name in request.path_params:
                             raw = request.path_params[name]
                         elif inspect.isclass(annotation) and issubclass(annotation, BaseModel):
                             raw = request.json()
@@ -220,7 +273,8 @@ class Worker:
                         else:
                             raise HTTPError(422, f"Missing parameter: {name}")
                         try:
-                            value = TypeAdapter(annotation).validate_python(raw)
+                            schema = Annotated[annotation, *extras] if extras else annotation
+                            value = TypeAdapter(schema).validate_python(raw)
                         except ValidationError as error:
                             raise HTTPError(422, json.loads(error.json(include_url=False, include_input=False))) from None
                     values[name] = value
@@ -254,15 +308,33 @@ class Worker:
                     return Response.json({"detail": error.detail}, error.status)
 
             call = endpoint
+            if invocation is not None:
+                async def function_endpoint(context):
+                    nonlocal state
+                    route = matched
+                    if route.state_model:
+                        value = (route.state_model.model_validate_json(state_json)
+                                 if state_json is not None else route.state_model())
+                        state = State(value)
+                    return await resolve(route.handler)
+                call = function_endpoint
             for middleware in reversed(self.middlewares):
                 previous = call
                 async def wrapped(req, middleware=middleware, previous=previous):
                     return await middleware(req, previous)
                 call = wrapped
             try:
-                response = await call(request)
+                response = await call(invocation if invocation is not None else request)
+                if invocation is not None:
+                    output = get_type_hints(matched.handler).get("return", Any)
+                    response = Response.json({"result": TypeAdapter(output).validate_python(response)})
             except HTTPError as error:
-                response = Response.json({"detail": error.detail}, error.status)
+                if invocation is not None:
+                    response = Response.json({"error": {"code": "validation_error", "message": error.detail}}, error.status)
+                else:
+                    response = Response.json({"detail": error.detail}, error.status)
+            except Error as error:
+                response = Response.json({"error": {"code": error.code, "message": str(error)}}, 400)
             if not isinstance(response, Response):
                 raise TypeError("Middleware must return Response")
         # Cleanup runs before the state is offered for commit. A cleanup failure aborts it.

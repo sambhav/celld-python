@@ -1,0 +1,279 @@
+{
+  "apps": {
+    "counter": {
+      "info": {
+        "abi_version": "2026_0",
+        "arch": "wasm32",
+        "platform": "emscripten_5_0_3",
+        "python": "3.14.2"
+      },
+      "packages": {
+        "annotated-types": {
+          "depends": [],
+          "file_name": "annotated_types-0.7.0-py3-none-any.whl",
+          "imports": [
+            "annotated_types"
+          ],
+          "install_dir": "site",
+          "name": "annotated-types",
+          "package_type": "package",
+          "sha256": "6b34f564725f8d309442f8d15abcceed1bf140fe2412e2c58da721426ae2222e",
+          "unvendored_tests": true,
+          "version": "0.7.0"
+        },
+        "pydantic": {
+          "depends": [
+            "annotated-types",
+            "pydantic-core",
+            "typing-extensions",
+            "typing-inspection"
+          ],
+          "file_name": "pydantic-2.12.5-py3-none-any.whl",
+          "imports": [
+            "pydantic"
+          ],
+          "install_dir": "site",
+          "name": "pydantic",
+          "package_type": "package",
+          "sha256": "52d15d19fbe2a62ac9b63348df7b38e5ebb186063a9b923a837dd6e43273b414",
+          "unvendored_tests": false,
+          "version": "2.12.5"
+        },
+        "pydantic-core": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "pydantic_core-2.41.5-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+          "imports": [
+            "pydantic_core"
+          ],
+          "install_dir": "site",
+          "name": "pydantic_core",
+          "package_type": "package",
+          "sha256": "9802bd7a5e6679ec4c13be778f19f021e6147459c89cc916b913f7970f86dddb",
+          "unvendored_tests": false,
+          "version": "2.41.5"
+        },
+        "typing-extensions": {
+          "depends": [],
+          "file_name": "typing_extensions-4.15.0-py3-none-any.whl",
+          "imports": [
+            "typing_extensions"
+          ],
+          "install_dir": "site",
+          "name": "typing-extensions",
+          "package_type": "package",
+          "sha256": "3f122252f0d498d80f7a684cc1d8baa6fa65b75e99447d77a6dd90e0f04302e3",
+          "unvendored_tests": false,
+          "version": "4.15.0"
+        },
+        "typing-inspection": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "typing_inspection-0.4.2-py3-none-any.whl",
+          "imports": [
+            "typing_inspection"
+          ],
+          "install_dir": "site",
+          "name": "typing-inspection",
+          "package_type": "package",
+          "sha256": "c9270737700f07813e1a87b63138993997afedbd2548f20fa739cc398f1b9f2f",
+          "unvendored_tests": false,
+          "version": "0.4.2"
+        }
+      }
+    },
+    "hello": {
+      "info": {
+        "abi_version": "2026_0",
+        "arch": "wasm32",
+        "platform": "emscripten_5_0_3",
+        "python": "3.14.2"
+      },
+      "packages": {
+        "annotated-types": {
+          "depends": [],
+          "file_name": "annotated_types-0.7.0-py3-none-any.whl",
+          "imports": [
+            "annotated_types"
+          ],
+          "install_dir": "site",
+          "name": "annotated-types",
+          "package_type": "package",
+          "sha256": "6b34f564725f8d309442f8d15abcceed1bf140fe2412e2c58da721426ae2222e",
+          "unvendored_tests": true,
+          "version": "0.7.0"
+        },
+        "pydantic": {
+          "depends": [
+            "annotated-types",
+            "pydantic-core",
+            "typing-extensions",
+            "typing-inspection"
+          ],
+          "file_name": "pydantic-2.12.5-py3-none-any.whl",
+          "imports": [
+            "pydantic"
+          ],
+          "install_dir": "site",
+          "name": "pydantic",
+          "package_type": "package",
+          "sha256": "52d15d19fbe2a62ac9b63348df7b38e5ebb186063a9b923a837dd6e43273b414",
+          "unvendored_tests": false,
+          "version": "2.12.5"
+        },
+        "pydantic-core": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "pydantic_core-2.41.5-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+          "imports": [
+            "pydantic_core"
+          ],
+          "install_dir": "site",
+          "name": "pydantic_core",
+          "package_type": "package",
+          "sha256": "9802bd7a5e6679ec4c13be778f19f021e6147459c89cc916b913f7970f86dddb",
+          "unvendored_tests": false,
+          "version": "2.41.5"
+        },
+        "typing-extensions": {
+          "depends": [],
+          "file_name": "typing_extensions-4.15.0-py3-none-any.whl",
+          "imports": [
+            "typing_extensions"
+          ],
+          "install_dir": "site",
+          "name": "typing-extensions",
+          "package_type": "package",
+          "sha256": "3f122252f0d498d80f7a684cc1d8baa6fa65b75e99447d77a6dd90e0f04302e3",
+          "unvendored_tests": false,
+          "version": "4.15.0"
+        },
+        "typing-inspection": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "typing_inspection-0.4.2-py3-none-any.whl",
+          "imports": [
+            "typing_inspection"
+          ],
+          "install_dir": "site",
+          "name": "typing-inspection",
+          "package_type": "package",
+          "sha256": "c9270737700f07813e1a87b63138993997afedbd2548f20fa739cc398f1b9f2f",
+          "unvendored_tests": false,
+          "version": "0.4.2"
+        }
+      }
+    },
+    "math": {
+      "info": {
+        "abi_version": "2026_0",
+        "arch": "wasm32",
+        "platform": "emscripten_5_0_3",
+        "python": "3.14.2"
+      },
+      "packages": {
+        "annotated-types": {
+          "depends": [],
+          "file_name": "annotated_types-0.7.0-py3-none-any.whl",
+          "imports": [
+            "annotated_types"
+          ],
+          "install_dir": "site",
+          "name": "annotated-types",
+          "package_type": "package",
+          "sha256": "6b34f564725f8d309442f8d15abcceed1bf140fe2412e2c58da721426ae2222e",
+          "unvendored_tests": true,
+          "version": "0.7.0"
+        },
+        "numpy": {
+          "depends": [],
+          "file_name": "numpy-2.4.6-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+          "imports": [
+            "numpy"
+          ],
+          "install_dir": "site",
+          "name": "numpy",
+          "package_type": "package",
+          "sha256": "32959d4137cec8143d75016d029281df3d2e80a232896ed903c2b59e1c44ee9f",
+          "unvendored_tests": false,
+          "version": "2.4.6"
+        },
+        "pydantic": {
+          "depends": [
+            "annotated-types",
+            "pydantic-core",
+            "typing-extensions",
+            "typing-inspection"
+          ],
+          "file_name": "pydantic-2.12.5-py3-none-any.whl",
+          "imports": [
+            "pydantic"
+          ],
+          "install_dir": "site",
+          "name": "pydantic",
+          "package_type": "package",
+          "sha256": "52d15d19fbe2a62ac9b63348df7b38e5ebb186063a9b923a837dd6e43273b414",
+          "unvendored_tests": false,
+          "version": "2.12.5"
+        },
+        "pydantic-core": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "pydantic_core-2.41.5-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+          "imports": [
+            "pydantic_core"
+          ],
+          "install_dir": "site",
+          "name": "pydantic_core",
+          "package_type": "package",
+          "sha256": "9802bd7a5e6679ec4c13be778f19f021e6147459c89cc916b913f7970f86dddb",
+          "unvendored_tests": false,
+          "version": "2.41.5"
+        },
+        "typing-extensions": {
+          "depends": [],
+          "file_name": "typing_extensions-4.15.0-py3-none-any.whl",
+          "imports": [
+            "typing_extensions"
+          ],
+          "install_dir": "site",
+          "name": "typing-extensions",
+          "package_type": "package",
+          "sha256": "3f122252f0d498d80f7a684cc1d8baa6fa65b75e99447d77a6dd90e0f04302e3",
+          "unvendored_tests": false,
+          "version": "4.15.0"
+        },
+        "typing-inspection": {
+          "depends": [
+            "typing-extensions"
+          ],
+          "file_name": "typing_inspection-0.4.2-py3-none-any.whl",
+          "imports": [
+            "typing_inspection"
+          ],
+          "install_dir": "site",
+          "name": "typing-inspection",
+          "package_type": "package",
+          "sha256": "c9270737700f07813e1a87b63138993997afedbd2548f20fa739cc398f1b9f2f",
+          "unvendored_tests": false,
+          "version": "0.4.2"
+        }
+      }
+    }
+  },
+  "format": 1,
+  "inputs": "a9fd3dc98653033e2897844f43ae168ca7f7d61d58f23b22ce998eb509125693",
+  "runtime": "314.0.6",
+  "runtime_files": {
+    "pyodide-lock.json": "3fdaef09e9e365c85e002737720f8d0ab8f278c1c244a2dde6a37663cf488ad4",
+    "pyodide.asm.mjs": "2ac5eba365ec12839c75c03b39b3be1dd63b798852cc460b014b52238be042f7",
+    "pyodide.asm.wasm": "3a0a00dfeaa348ac20f9ef09904233d32d33f644339662d4af368f8a2010f37a",
+    "pyodide.mjs": "69e3f6ccec3e14b465df60be577ca62f536251406b9a00cce019eac5252a2495",
+    "python_stdlib.zip": "80c5be6babfe03297069703410c3c29404dcf2525d2b128746bae5536f94831f"
+  }
+}
