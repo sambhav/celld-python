@@ -28,6 +28,9 @@ Optional `bare-cell` and `bare-write` controls isolate cell routing and SQLite w
 
 A Go standard-library load generator uses HTTP/1.1 keep-alive, unique call IDs and
 arguments, balanced distribution over all 16 SDK stateless slots, and no retries.
+At 16+ clients, each client stays on one slot so outstanding work stays balanced;
+below 16, clients rotate through slots. Admission failures are retained separately
+and excluded from successful capacity results. Confirmation failures fail the run.
 It validates every response and rejects errors, replay headers, wrong customer
 IDs, wrong prices, or leaked request trace IDs. Upstream request/completion counts
 must equal successful client responses. The upstream reports peak active requests.
@@ -51,3 +54,11 @@ These processes share the runner CPU allocation. The local development object
 store is used; there is no remote S3 durability/network latency or multi-host
 scaling in these measurements. No TTL, packing default, or production replay
 guarantee is silently changed to obtain a higher throughput number.
+
+The `benchmark-throughput-tuned` label compares the SDK before and after cached
+Pydantic/DI metadata on the same runner. `baseline-durable` and
+`baseline-concurrent` embed `celld/app.py` from immutable commit
+`9e26fa34c5e5611801d3203507e1c750d6e8a60d` in the otherwise identical generated
+project. The matched `python-*` cases use current code. The cache changes neither
+validation nor replay guarantees; it avoids rebuilding schemas and inspecting
+static function signatures for every request.

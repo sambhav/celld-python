@@ -114,3 +114,48 @@ async def test_state_round_trips_python_fields_independently_of_wire_aliases():
         response, state = await app.dispatch(Request("POST", "/increment", body=b'{"key":"a"}'), state)
         assert json.loads(state) == {"count": value}
         assert json.loads(response.body) == {"result": {"total": value}}
+
+
+async def test_warm_validation_keeps_constraints_defaults_and_dependencies_isolated():
+    app, opened, closed = Worker(), [], []
+
+    async def resource(ctx: Context):
+        opened.append(ctx.call_id)
+        try:
+            yield ctx.call_id
+        finally:
+            closed.append(ctx.call_id)
+
+    @app.function
+    async def check(name: Annotated[str, Field(min_length=2)],
+                    trace=Depends(resource), values: list[int] = []) -> dict:
+        values.append(len(name))
+        await asyncio.sleep(0)
+        return {"values": values, "trace": trace}
+
+    async def invoke(i, body):
+        return (await app.dispatch(Request("POST", "/check", body=body,
+            header_items=[("x-celld-call-id", str(i))])))[0]
+
+    # Warm compiled metadata, then interleave valid calls and invalid input.
+    assert (await invoke("warm", b'{"name":"ok"}')).status == 200
+    results = await asyncio.gather(*(invoke(i, b'{"name":"ok"}') for i in range(16)))
+    for i, response in enumerate(results):
+        assert json.loads(response.body)["result"] == {"values": [2], "trace": str(i)}
+    for body in (b'{"name":"x"}', b'{"name":"ok","extra":1}', b'{"name":"ok","values":["bad"]}'):
+        assert (await invoke("invalid", body)).status == 422
+    assert sorted(opened) == sorted(closed)
+    assert len([item for item in opened if item != "invalid"]) == 17
+
+
+async def test_warm_output_validator_keeps_enforcing_constraints():
+    from pydantic import ValidationError
+    app = Worker()
+
+    @app.function
+    def absolute(value: int) -> Annotated[int, Field(ge=0)]:
+        return value
+
+    assert (await app.dispatch(Request("POST", "/absolute", body=b'{"value":1}')))[0].status == 200
+    with pytest.raises(ValidationError):
+        await app.dispatch(Request("POST", "/absolute", body=b'{"value":-1}'))

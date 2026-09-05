@@ -27,6 +27,25 @@ func TestIDsAreUniqueAndBalanced(t *testing.T) {
 	}
 }
 
+func TestHighConcurrencyKeepsOutstandingSlotsBalanced(t *testing.T) {
+	fixedSlots = true
+	defer func() { fixedSlots = false }()
+	counts := [16]int{}
+	for worker := 0; worker < 1024; worker++ {
+		for seq := 0; seq < 32; seq++ {
+			if slot(callID("test-unique-prefix", worker, seq)) != worker%16 {
+				t.Fatal(worker, seq)
+			}
+		}
+		counts[worker%16]++
+	}
+	for _, n := range counts {
+		if n != 64 {
+			t.Fatal(counts)
+		}
+	}
+}
+
 func TestRejectErrorsIncorrectAndReplayedReplies(t *testing.T) {
 	for _, mode := range []string{"good", "incorrect", "status", "replay", "json"} {
 		t.Run(mode, func(t *testing.T) {

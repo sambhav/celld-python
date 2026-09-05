@@ -27,9 +27,14 @@ func slot(id string) int {
 	return n
 }
 
+var fixedSlots bool
+
 func callID(prefix string, worker, seq int) string {
 	id := fmt.Sprintf("%s-%04x-%08x-", prefix, worker, seq)
 	want := (worker + seq) % 16
+	if fixedSlots {
+		want = worker % 16
+	}
 	adjust := ((want-slot(id)*31-65)%16 + 16) % 16
 	return id + string(rune(65+adjust))
 }
@@ -111,6 +116,10 @@ func main() {
 	if *url == "" || *clients < 1 || *seconds <= 0 || *count < 0 {
 		panic("invalid arguments")
 	}
+	// At high concurrency, keep equal outstanding work per cell. Otherwise a
+	// slower cell collects most of a closed-loop driver's clients and hits its
+	// 64-request admission limit before the rest of the pool is saturated.
+	fixedSlots = *clients >= 16
 	transport := &http.Transport{MaxIdleConns: *clients, MaxIdleConnsPerHost: *clients,
 		MaxConnsPerHost: *clients, DisableCompression: true, ForceAttemptHTTP2: false}
 	defer transport.CloseIdleConnections()

@@ -179,10 +179,47 @@ class Route:
     context_model: type[BaseModel] | None = None
 
 
+@dataclass(frozen=True)
+class _Parameter:
+    name: str
+    annotation: Any
+    default: Any
+    dependency: Callable | None
+    adapter: TypeAdapter | None
+
+
 class Worker:
     def __init__(self):
         self.routes: list[Route] = []
         self.middlewares: list[Callable] = []
+        # Only immutable call metadata is shared. Values, context, state, and
+        # dependency cleanup remain owned by each dispatch below.
+        self._parameters: dict[Callable, tuple[_Parameter, ...]] = {}
+        self._argument_names: dict[Callable, frozenset[str]] = {}
+        self._outputs: dict[Callable, TypeAdapter] = {}
+
+    def _prepare(self, provider):
+        if provider not in self._parameters:
+            hints = get_type_hints(provider, include_extras=True)
+            parameters = []
+            for name, param in inspect.signature(provider).parameters.items():
+                annotation, extras = _annotation(hints.get(name, Any))
+                dep = next((x for x in extras if isinstance(x, Depends)), None)
+                if isinstance(param.default, Depends):
+                    dep = param.default
+                injected = dep or annotation in (Request, Invocation, Context) or get_origin(annotation) in (State, Context)
+                schema = Annotated[annotation, *extras] if extras else annotation
+                parameters.append(_Parameter(name, annotation, param.default,
+                                             dep.provider if dep else None,
+                                             None if injected else TypeAdapter(schema)))
+            self._parameters[provider] = tuple(parameters)
+        return self._parameters[provider]
+
+    def _output(self, provider):
+        if provider not in self._outputs:
+            output = get_type_hints(provider, include_extras=True).get("return", Any)
+            self._outputs[provider] = TypeAdapter(output)
+        return self._outputs[provider]
 
     def route(self, method: str, path: str, *, state_key=None, namespace=None, _operation=None):
         if not path.startswith("/") or "?" in path or "#" in path:
@@ -318,8 +355,9 @@ class Worker:
                 if not 1 <= ctx.attempt <= 100:
                     raise ValueError("Attempt must be between 1 and 100")
                 invocation = Invocation(matched.operation, arguments, metadata, ctx)
-                fields = _inputs(matched.handler)
-                unknown = arguments.keys() - fields.keys()
+                if matched.handler not in self._argument_names:
+                    self._argument_names[matched.handler] = frozenset(_inputs(matched.handler))
+                unknown = arguments.keys() - self._argument_names[matched.handler]
                 if unknown:
                     raise HTTPError(422, f"Unknown arguments: {', '.join(sorted(unknown))}")
             except (HTTPError, ValueError) as error:
@@ -330,15 +368,11 @@ class Worker:
             async def resolve(provider):
                 if provider in cache:
                     return cache[provider]
-                hints = get_type_hints(provider, include_extras=True)
                 values = {}
-                for name, param in inspect.signature(provider).parameters.items():
-                    annotation, extras = _annotation(hints.get(name, Any))
-                    dep = next((x for x in extras if isinstance(x, Depends)), None)
-                    if isinstance(param.default, Depends):
-                        dep = param.default
-                    if dep:
-                        value = await resolve(dep.provider)
+                for param in self._prepare(provider):
+                    name, annotation = param.name, param.annotation
+                    if param.dependency is not None:
+                        value = await resolve(param.dependency)
                     elif annotation is Request:
                         value = request
                     elif annotation is Invocation:
@@ -366,8 +400,7 @@ class Worker:
                         else:
                             raise HTTPError(422, f"Missing parameter: {name}")
                         try:
-                            schema = Annotated[annotation, *extras] if extras else annotation
-                            value = TypeAdapter(schema).validate_python(raw)
+                            value = param.adapter.validate_python(raw)
                         except ValidationError as error:
                             raise HTTPError(422, json.loads(error.json(include_url=False, include_input=False))) from None
                     values[name] = value
@@ -394,8 +427,7 @@ class Worker:
                     value = await resolve(route.handler)
                     if isinstance(value, Response):
                         return value
-                    output = get_type_hints(route.handler, include_extras=True).get("return", Any)
-                    value = TypeAdapter(output).validate_python(value)
+                    value = self._output(route.handler).validate_python(value)
                     return Response.json(value)
                 except HTTPError as error:
                     return Response.json({"detail": error.detail}, error.status)
@@ -419,8 +451,7 @@ class Worker:
             try:
                 response = await call(invocation if invocation is not None else request)
                 if invocation is not None:
-                    output = get_type_hints(matched.handler, include_extras=True).get("return", Any)
-                    response = Response.json({"result": TypeAdapter(output).validate_python(response)})
+                    response = Response.json({"result": self._output(matched.handler).validate_python(response)})
             except HTTPError as error:
                 if invocation is not None:
                     response = Response.json({"error": {"code": "validation_error", "message": error.detail}}, error.status)

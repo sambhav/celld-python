@@ -53,9 +53,9 @@ def remove_receipts(host):
     return host
 
 
-def templates(out, modes, upstream_url):
+def templates(out, modes, upstream_url, baseline_ref):
     projects = {}
-    if any(m.startswith("python") for m in modes):
+    if any(m.startswith(("python", "baseline")) for m in modes):
         app = out / "app"
         (app / "src").mkdir(parents=True)
         (app / "src/app.py").write_text((HERE / "io_app.py").read_text().replace("__UPSTREAM_URL__", upstream_url) if upstream_url else SOURCE)
@@ -65,12 +65,19 @@ def templates(out, modes, upstream_url):
         project = build(app, out / "python-template")
     for mode in modes:
         target = out / (mode + "-template")
-        if mode.startswith("python"):
+        if mode.startswith(("python", "baseline")):
             shutil.copytree(project, target)
-            if mode in {"python-no-receipts", "python-concurrent"}:
+            if mode.startswith("baseline"):
+                manifest = target / "manifest.js"
+                apps, sdk_json = manifest.read_text().split("\nexport const sdk=", 1)
+                sdk = json.loads(sdk_json.strip().removesuffix(";"))
+                sdk["celld/app.py"] = subprocess.check_output(["git", "show", baseline_ref + ":celld/app.py"], cwd=ROOT, text=True)
+                manifest.write_text(apps + "\nexport const sdk=" + json.dumps(sdk) + ";\n")
+            runtime_mode = mode.replace("baseline-", "python-")
+            if runtime_mode in {"python-no-receipts", "python-concurrent"}:
                 host = target / "host.js"
                 source = remove_receipts(host.read_text())
-                if mode == "python-concurrent":
+                if runtime_mode == "python-concurrent":
                     gate = 'fetch(request){return this.ctx.blockConcurrencyWhile(()=>this.execute(request)).catch(failure);}'
                     assert source.count(gate) == 1
                     source = source.replace(gate, 'fetch(request){return this.execute(request).catch(failure);}')
@@ -96,9 +103,12 @@ def main():
     parser.add_argument("--io-delay-ms", type=int, default=0)
     parser.add_argument("--confirm-seconds", type=float, default=15)
     parser.add_argument("--confirm-rounds", type=int, default=3)
+    parser.add_argument("--baseline-ref", default="9e26fa34c5e5611801d3203507e1c750d6e8a60d")
     args = parser.parse_args()
+    import re
+    assert re.fullmatch(r"[0-9a-f]{40}", args.baseline_ref)
     assert args.seconds > 0 and args.rounds > 0 and all(c > 0 for c in args.clients)
-    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent"}
+    assert set(args.modes) <= {"bare-stateless", "bare-cell", "bare-write", "python-durable", "python-no-receipts", "python-concurrent", "baseline-durable", "baseline-concurrent"}
     out = HERE / "build" / uuid.uuid4().hex[:12]
     out.mkdir(parents=True)
     binary = shutil.which("celld")
@@ -121,15 +131,15 @@ def main():
                 break
             except OSError: time.sleep(.05)
         else: raise RuntimeError("Upstream did not start")
-    projects = templates(out, args.modes, upstream_url)
+    projects = templates(out, args.modes, upstream_url, args.baseline_ref)
     report = dict(run_url=f"https://github.com/{os.environ.get('GITHUB_REPOSITORY','sambhav/celld-python')}/actions/runs/{os.environ.get('GITHUB_RUN_ID','')}",
-        head_sha=os.environ.get("BENCH_HEAD_SHA", ""), native_sha=os.environ.get("CELLD_NATIVE_SHA", ""),
+        head_sha=os.environ.get("BENCH_HEAD_SHA", ""), baseline_ref=args.baseline_ref, native_sha=os.environ.get("CELLD_NATIVE_SHA", ""),
         binary_sha256=hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
         cpu=subprocess.check_output(["lscpu"], text=True), memory=subprocess.check_output(["free","-b"], text=True),
         go=subprocess.check_output(["go","version"], text=True).strip(), profile="lab (thin LTO)",
         store="local SQLite development object store; no remote S3", smoke=args.smoke,
         protocol="HTTP/1.1 keep-alive; closed loop; unique inputs and IDs; every reply checked; no retry/replay",
-        slots=16, seconds=args.seconds, rounds=args.rounds, io_delay_ms=args.io_delay_ms, samples=[])
+        slots=16, seconds=args.seconds, rounds=args.rounds, io_delay_ms=args.io_delay_ms, samples=[], rejected=[])
     for round_ in range(args.rounds + args.confirm_rounds):
         phase = "screen" if round_ < args.rounds else "confirm"
         duration = args.seconds if phase == "screen" else args.confirm_seconds
@@ -156,13 +166,26 @@ def main():
                 warm = subprocess.run(command + ["--clients","4","--count","16"], capture_output=True, text=True)
                 if warm.returncode: raise RuntimeError(f"{stem} warmup: {warm.stdout} {warm.stderr}")
                 for clients in widths:
-                    subprocess.run(command + ["--clients",str(clients),"--count","2"], check=True, capture_output=True, text=True)
+                    def reject(result, stage):
+                        detail = json.loads(result.stdout)
+                        record = dict(mode=mode,density=density,clients=clients,round=round_,phase=phase,stage=stage,detail=detail)
+                        report["rejected"].append(record)
+                        (out / "measurements.json").write_text(json.dumps(report,indent=2)+"\n")
+                        print("THROUGHPUT_REJECTED="+json.dumps(record,separators=(",",":")),flush=True)
+                        if phase != "screen" or "cell request limit reached" not in detail.get("first_error", ""):
+                            raise RuntimeError(f"Failed correctness/confirmation: {record}")
+                    warm = subprocess.run(command + ["--clients",str(clients),"--count","2"], capture_output=True, text=True)
+                    if warm.returncode:
+                        reject(warm,"warmup")
+                        break
                     if upstream_process:
                         with urllib.request.urlopen(f"http://{address}/reset") as response: response.read()
                     upstream_cpu = cpu_seconds(upstream_process.pid) if upstream_process and not args.smoke else 0
                     start_cpu = 0 if args.smoke else cpu_seconds(running.process.pid)
                     result = subprocess.run(command + ["--clients",str(clients),"--seconds",str(duration)], capture_output=True, text=True)
-                    if result.returncode: raise RuntimeError(f"{stem}: {result.stdout}\n{result.stderr}")
+                    if result.returncode:
+                        reject(result,"measurement")
+                        break
                     sample = json.loads(result.stdout)
                     end_cpu = 0 if args.smoke else cpu_seconds(running.process.pid)
                     state = running.state()
