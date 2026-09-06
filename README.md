@@ -3,6 +3,29 @@
 Python worker functions and durable state on [celld](https://github.com/denoland/celld).
 One S3 bucket is the only external persistence/coordination service. **Experimental.**
 
+Two native runtimes are available in the [celld fork PR](https://github.com/sambhav/celld/pull/2):
+
+- **Pyodide**: ordinary Cloudflare Python workers, durable classes and compatible WASM packages.
+- **Monty**: native Rust execution of public functions/simple durable classes, with a smaller Python subset and Rust-registered state/I/O capabilities.
+
+```sh
+pycelld init hello --runtime monty
+pycelld dev hello
+pycelld call hello name=Sam
+pycelld client --endpoint http://127.0.0.1:9876 --out hello_client.py
+```
+
+Native projects declare `python_runtime` in Wrangler JSONC and use celld's own
+build/dev/deploy path. `--runtime pyodide` scaffolds a Cloudflare fetch worker.
+See the [runtime guide](https://github.com/sambhav/celld/blob/feat/python-wrangler/docs/python.md)
+for durable primitives, package support, client semantics and Monty's current limits.
+Monty is experimental; the integrated runtime has not yet been benchmarked and
+its native memory is not bounded by V8's heap limit.
+
+The function/decorator SDK below is the richer Pyodide frontend, with Pydantic,
+middleware and dependency injection. `pycelld init` without `--runtime` selects it.
+Its build requirements below apply to this SDK frontend, not native Monty projects.
+
 ```python
 from celld import App
 

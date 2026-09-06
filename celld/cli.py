@@ -13,6 +13,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Create a hello-world worker")
     init.add_argument("directory", type=Path)
+    init.add_argument("--runtime", choices=("pyodide", "monty"), help="Use celld's native Python backend; omit for the function/decorator SDK")
     descriptions = {
         "lock": "Pin and fetch the runtime and declared Python packages",
         "build": "Bundle workers, packages, schemas, and typed clients",
@@ -43,7 +44,8 @@ def main():
         else:
             command.add_argument("--json", action="store_true", help="Print the full client contract")
     client = commands.add_parser("client", help="Generate a client from a saved schema")
-    client.add_argument("schema", type=Path)
+    client.add_argument("schema", nargs="?", type=Path)
+    client.add_argument("--endpoint", help="Generate from a running worker instead of a saved schema")
     client.add_argument("--out", required=True, type=Path)
     import sys
     argv = sys.argv[1:]
@@ -55,14 +57,31 @@ def main():
     if extra and args.command != "deploy":
         parser.error("Only deploy accepts forwarded celld arguments after --")
     try:
+        if args.command in {"lock", "build", "dev", "deploy"}:
+            from .native import project as native_project, run as native_run
+            config = native_project(args.project)
+            if config is not None:
+                native_run(args, config, extra)
+                return
         if args.command == "init":
-            from .scaffold import create
-            path = create(args.directory)
+            if args.runtime:
+                from .native import create
+                path = create(args.directory, args.runtime)
+            else:
+                from .scaffold import create
+                path = create(args.directory)
             print(f"Created {path}. Start it with: pycelld dev {path}")
         elif args.command == "lock":
             print(lock(args.project))
         elif args.command == "client":
-            print(generate(json.loads(args.schema.read_text()), args.out))
+            if bool(args.schema) == bool(args.endpoint):
+                raise ValueError("Provide a schema file or --endpoint")
+            if args.endpoint:
+                from .client import Client
+                schema = Client(args.endpoint).describe()
+            else:
+                schema = json.loads(args.schema.read_text())
+            print(generate(schema, args.out))
         elif args.command == "dev":
             from .dev import run
             if args.idle_timeout is not None and args.idle_timeout < 1:
