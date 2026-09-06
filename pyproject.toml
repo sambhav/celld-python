@@ -27,7 +27,7 @@ Documentation = "https://github.com/sambhav/celld-python#readme"
 pycelld = "celld.cli:main"
 
 [tool.setuptools.package-data]
-celld = ["runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
+celld = ["py.typed", "runtime/*.js", "runtime/*.mjs", "licenses/*.txt"]
 
 [tool.setuptools.packages.find]
 include = ["celld*"]
