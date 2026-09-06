@@ -25,3 +25,5 @@ GitHub measurements compare identical code and binaries with snapshots enabled
 and disabled, including native readiness separately from the first Python call.
 
 Completed same-runner results: [2026-09-06 snapshots and isolate scaling](../results/2026-09-06-snapshots.md).
+
+The loader also releases its bootstrap snapshot reference. [The controlled memory A/B](../results/2026-09-06-snapshot-input-memory.md) confirmed removal of retained input but found no material immediate RSS reduction.

@@ -462,3 +462,5 @@ identical build for comparisons. This targets cold startup; warm throughput and
 per-application scale to zero are separate concerns. See
 [the snapshot benchmark results](experiments/results/2026-09-06-snapshots.md) for measurements and
 remaining differences from Cloudflare's application snapshots.
+
+The pinned loader drops the bootstrap snapshot reference after taking its restore input. A [same-runner memory comparison](experiments/results/2026-09-06-snapshot-input-memory.md) verifies that cleanup, but does not show a material immediate RSS reduction.

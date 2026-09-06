@@ -1,0 +1,273 @@
+{
+  "binary_sha256": "5c5ef28a3841d58c791ea77546c0f245aa55922ba9e1968a147d85d593bdbbc5",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.29\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                2 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "native_sha": "1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec",
+  "run_url": "https://github.com/sambhav/celld-python/actions/runs/34019509707",
+  "samples": [
+    {
+      "in_use_bytes": 471407212,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": false,
+      "retained_input_bytes": 31457824,
+      "round": 0,
+      "rss_bytes": 493727744,
+      "rss_samples": [
+        493699072,
+        493707264,
+        493719552,
+        493723648,
+        493731840,
+        493748224,
+        493801472,
+        493776896
+      ]
+    },
+    {
+      "in_use_bytes": 1166104312,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": false,
+      "retained_input_bytes": 125831296,
+      "round": 0,
+      "rss_bytes": 1231622144,
+      "rss_samples": [
+        1229500416,
+        1231618048,
+        1231618048,
+        1231618048,
+        1231626240,
+        1231626240,
+        1231626240,
+        1231626240
+      ]
+    },
+    {
+      "in_use_bytes": 470202800,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 0,
+      "rss_bytes": 492568576,
+      "rss_samples": [
+        492445696,
+        492449792,
+        492457984,
+        492568576,
+        492568576,
+        492568576,
+        492601344,
+        492568576
+      ]
+    },
+    {
+      "in_use_bytes": 1174684176,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 0,
+      "rss_bytes": 1241640960,
+      "rss_samples": [
+        1241526272,
+        1241608192,
+        1241673728,
+        1241743360,
+        1241812992,
+        1241878528,
+        1234395136,
+        1234464768
+      ]
+    },
+    {
+      "in_use_bytes": 474593668,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 1,
+      "rss_bytes": 496660480,
+      "rss_samples": [
+        496631808,
+        496640000,
+        496648192,
+        496656384,
+        496664576,
+        496672768,
+        496680960,
+        496709632
+      ]
+    },
+    {
+      "in_use_bytes": 1160459824,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 1,
+      "rss_bytes": 1229670400,
+      "rss_samples": [
+        1231056896,
+        1231130624,
+        1231216640,
+        1231286272,
+        1228038144,
+        1228120064,
+        1228210176,
+        1228283904
+      ]
+    },
+    {
+      "in_use_bytes": 460803768,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": false,
+      "retained_input_bytes": 31457824,
+      "round": 1,
+      "rss_bytes": 483635200,
+      "rss_samples": [
+        473022464,
+        483602432,
+        483610624,
+        483631104,
+        483639296,
+        483647488,
+        483651584,
+        483672064
+      ]
+    },
+    {
+      "in_use_bytes": 1172824936,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": false,
+      "retained_input_bytes": 125831296,
+      "round": 1,
+      "rss_bytes": 1236983808,
+      "rss_samples": [
+        1236873216,
+        1236946944,
+        1237020672,
+        1237090304,
+        1237164032,
+        1237237760,
+        1228300288,
+        1228382208
+      ]
+    },
+    {
+      "in_use_bytes": 471851712,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": false,
+      "retained_input_bytes": 31457824,
+      "round": 2,
+      "rss_bytes": 494415872,
+      "rss_samples": [
+        494411776,
+        494415872,
+        494415872,
+        494415872,
+        494415872,
+        494415872,
+        494415872,
+        494415872
+      ]
+    },
+    {
+      "in_use_bytes": 1143684880,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": false,
+      "retained_input_bytes": 125831296,
+      "round": 2,
+      "rss_bytes": 1209171968,
+      "rss_samples": [
+        1209139200,
+        1209204736,
+        1209311232,
+        1209376768,
+        1209446400,
+        1204961280,
+        1205022720,
+        1205096448
+      ]
+    },
+    {
+      "in_use_bytes": 471160688,
+      "initialized_runtimes": 1,
+      "max_stateless_isolates": 1,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 2,
+      "rss_bytes": 494458880,
+      "rss_samples": [
+        494415872,
+        494424064,
+        494432256,
+        494456832,
+        494460928,
+        494469120,
+        494473216,
+        494485504
+      ]
+    },
+    {
+      "in_use_bytes": 1156099152,
+      "initialized_runtimes": 4,
+      "max_stateless_isolates": 4,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "round": 2,
+      "rss_bytes": 1219008512,
+      "rss_samples": [
+        1218924544,
+        1218973696,
+        1219043328,
+        1219108864,
+        1219174400,
+        1219244032,
+        1213132800,
+        1213202432
+      ]
+    }
+  ],
+  "smoke": false,
+  "source_sha": "13e7e85cf185f0fd8d895e0e797d337db174d4cb",
+  "store": "local SQLite development object store; no remote S3",
+  "summary": [
+    {
+      "in_use_bytes": 471407212,
+      "max_stateless_isolates": 1,
+      "release_input": false,
+      "retained_input_bytes": 31457824,
+      "rounds": 3,
+      "rss_bytes": 493727744
+    },
+    {
+      "in_use_bytes": 1166104312,
+      "max_stateless_isolates": 4,
+      "release_input": false,
+      "retained_input_bytes": 125831296,
+      "rounds": 3,
+      "rss_bytes": 1231622144
+    },
+    {
+      "in_use_bytes": 471160688,
+      "max_stateless_isolates": 1,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "rounds": 3,
+      "rss_bytes": 494458880
+    },
+    {
+      "in_use_bytes": 1160459824,
+      "max_stateless_isolates": 4,
+      "release_input": true,
+      "retained_input_bytes": 0,
+      "rounds": 3,
+      "rss_bytes": 1229670400
+    }
+  ]
+}
