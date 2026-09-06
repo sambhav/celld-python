@@ -7,7 +7,15 @@ export async function assetFetch(input) {
   if (url.origin !== 'https://celld-python.invalid') throw new Error(`Unbundled runtime URL: ${url}`);
   const data = assets[url.pathname];
   if (data === undefined) throw new Error(`Unbundled runtime asset: ${url.pathname}`);
-  return new Response(Uint8Array.from(atob(data), c => c.charCodeAt(0)), {
+  let bytes;
+  if (typeof Uint8Array.fromBase64 === 'function') {
+    bytes = Uint8Array.fromBase64(data);
+  } else {
+    const binary = atob(data);
+    bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  }
+  return new Response(bytes, {
     headers: { 'content-type': url.pathname.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream' },
   });
 }

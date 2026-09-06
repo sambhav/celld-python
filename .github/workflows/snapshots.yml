@@ -1,0 +1,58 @@
+name: Python snapshot and pool benchmark
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  CELLD_NATIVE_SHA: 1c5e12e0d2c5000e5a2d837413d16ce6123ee1ec
+jobs:
+  measure:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark-snapshots'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.7'
+          cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: throughput-native
+          path: native-bin
+          run-id: 33988408853
+          github-token: ${{ github.token }}
+      - run: |
+          chmod +x native-bin/celld
+          echo "$GITHUB_WORKSPACE/native-bin" >> "$GITHUB_PATH"
+          python -m pip install -e . pytest pytest-asyncio
+          npm install -g esbuild@0.25.12
+      - uses: actions/cache@v4
+        with:
+          path: examples/.celld-python/cache
+          key: pyodide-314.0.6-snapshot-${{ hashFiles('examples/celld.lock.json') }}
+          restore-keys: pyodide-314.0.6-
+      - run: |
+          pycelld lock examples/fleet.toml
+          git diff --exit-code -- examples/celld.lock.json
+          cd experiments/throughput/load
+          go test -race ./...
+      - run: python experiments/snapshots/measure.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snapshot-measurements
+          path: |
+            experiments/snapshots/build/**/measurements.json
+            experiments/snapshots/build/**/*.log
