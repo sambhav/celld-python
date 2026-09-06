@@ -74,7 +74,7 @@ async def test_async_describe_and_schema_errors():
             await client.describe()
 
 
-def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, monkeypatch):
+def test_dev_prepares_locked_artifacts_and_forwards_idle_policy(tmp_path, monkeypatch):
     from celld import cli, dev
     from celld.scaffold import create
     project = create(tmp_path / "hello")
@@ -82,12 +82,12 @@ def test_dev_prepares_only_a_missing_lock_and_forwards_idle_policy(tmp_path, mon
     def prepare(target):
         locked.append(target)
         (target / "celld.lock.json").write_text("existing pin")
-    monkeypatch.setattr(cli, "lock", prepare)
+    monkeypatch.setattr(cli, "prepare", prepare)
     monkeypatch.setattr(dev, "run", lambda target, **options: runs.append((target, options)))
     monkeypatch.setattr(sys, "argv", ["pycelld", "dev", str(project), "--idle-timeout", "60"])
     main()
     main()
-    assert locked == [project]
+    assert locked == [project, project]
     assert len(runs) == 2 and all(options["idle_timeout"] == 60 for _, options in runs)
     assert (project / "celld.lock.json").read_text() == "existing pin"
 

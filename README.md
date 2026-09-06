@@ -432,8 +432,9 @@ pycelld dev examples/wrangler
 pycelld build examples/wrangler
 ```
 
-The celld fork's Python integration also accepts the original configuration in
-`celld dev` and `celld deploy`, invoking the installed `pycelld` builder locally.
+The SDK owns its function-oriented build/dev/deploy orchestration. The celld
+fork exposes in-process compiler hooks and is adding a built-in Cloudflare
+`WorkerEntrypoint` backend; it does not launch the `pycelld` CLI.
 The generated deployment contains the Python runtime, wheels, application code,
 and client schema. Server nodes still require only celld and S3. This supports
 Wrangler's configuration format; it does not replace the Python loader inside

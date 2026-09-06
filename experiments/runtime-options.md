@@ -1,16 +1,19 @@
 # Fast Python runtimes and warm pools
 
-Assessment as of 2026-09-05. These are architecture options, not implemented
-backends or promised cold-start numbers. The supported SDK uses Pyodide.
+Updated 2026-09-06. The supported SDK uses Pyodide with a bundled interpreter
+snapshot. Native CPython and Monty remain architecture options, not implemented
+backends or promised cold-start numbers.
 
 ## Recommendation for this project
 
 Keep full Python/Pydantic/WASM-wheel compatibility in the default backend. The
 stateless path removes receipts and cell routing, and reuses interpreters across
-calls. The next cold-start experiment should investigate snapshots after loading
-the runtime, dependencies, and application, keyed by immutable code/dependency
-revision. Cloudflare already performs this work at deployment and restores WASM
-linear-memory snapshots on demand; our current celld integration does not.
+calls. Builds now snapshot the interpreter and portable stdlib imports using
+Pyodide's own API, restoring this baseline before package/application imports.
+See [implementation and measurements](snapshots/README.md). Cloudflare goes
+further: its dedicated snapshots include dependencies and application imports.
+That requires compatible dynamic-library mappings and reference restoration;
+our first implementation does not snapshot third-party libraries or app code.
 
 [Cloudflare's deployment lifecycle](https://developers.cloudflare.com/workers/languages/python/how-python-workers-work/)
 describes the mechanism. This requires runtime integration; simply copying a WASM
@@ -69,7 +72,7 @@ Snapshots or warm entries per dependency set address that additional work. Never
 reuse a tenant-mutated interpreter as a clean base for another tenant.
 
 Those pool/controller policies belong to the hosting platform. S3 can continue
-to store bundles and future snapshots without introducing Redis, a database
+to store bundles and snapshots without introducing Redis, a database
 service, or Kubernetes as required SDK dependencies.
 
 For a hosted option today, [Modal's autoscaler](https://modal.com/docs/guide/scale)

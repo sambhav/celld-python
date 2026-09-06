@@ -93,7 +93,7 @@ def main():
             import urllib.request
             def stats(path='stats'):
                 with urllib.request.urlopen(f'http://{address}/{path}', timeout=5) as response:
-                    return json.load(response)
+                    return response.read() if path == 'reset' else json.load(response)
             for _ in range(100):
                 try:
                     stats()

@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from .build import build, configurations, lock
+from .build import build, configurations, lock, prepare
 from .codegen import generate
 
 
@@ -67,10 +67,7 @@ def main():
             from .dev import run
             if args.idle_timeout is not None and args.idle_timeout < 1:
                 raise ValueError("idle-timeout must be a positive number of seconds")
-            root, _, _ = configurations(args.project)
-            if not (root / "celld.lock.json").exists():
-                print("Preparing the pinned runtime and declared packages...", flush=True)
-                lock(args.project)
+            prepare(args.project)
             run(args.project, port=args.port, host=args.host, reload=not args.no_reload, idle_timeout=args.idle_timeout)
         elif args.command in {"call", "functions"}:
             from .client import Client, RemoteError
@@ -89,6 +86,8 @@ def main():
                 recovery = f" (call ID: {error.call_id})" if error.call_id else ""
                 parser.exit(1, f"pycelld: {error}{recovery}\n")
         else:
+            if args.command == "deploy":
+                prepare(args.project)
             output = build(args.project, getattr(args, "out", None), host=args.host, snapshot=not getattr(args, "no_snapshot", False))
             if args.command == "build":
                 print(output)

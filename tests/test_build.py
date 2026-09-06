@@ -44,3 +44,32 @@ def test_runtime_patch_is_version_guarded():
     for source in ("changed", "needle needle"):
         with pytest.raises(ValueError, match="pinned runtime"):
             replace_once(source, "needle", "replacement")
+
+
+def test_prepare_hydrates_a_lock_without_changing_pins(tmp_path, monkeypatch):
+    import celld.build as builder
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname="demo"\n[tool.celld]\nwheels=["demo-1.0-py3-none-any.whl"]\n')
+    supplied = wheel(tmp_path / 'demo-1.0-py3-none-any.whl')
+    runtime = tmp_path / 'runtime'
+    runtime.mkdir()
+    (runtime / 'core').write_bytes(b'pinned')
+    monkeypatch.setattr(builder, 'core', lambda _: runtime)
+    _, _, apps = builder.configurations(tmp_path)
+    sha = digest(supplied.read_bytes())
+    locked = dict(format=1, runtime=builder.PYODIDE, inputs=builder.inputs_hash(apps),
+        runtime_files={'core':digest(b'pinned')},
+        apps={'demo':{'packages':{'demo':dict(name='demo',file_name=supplied.name,sha256=sha)}}})
+    lock = tmp_path / 'celld.lock.json'
+    lock.write_text(json.dumps(locked))
+    original = lock.read_bytes()
+    assert builder.prepare(tmp_path) == lock
+    assert lock.read_bytes() == original
+    cached = tmp_path / '.celld-python/cache/packages' / sha / supplied.name
+    assert cached.read_bytes() == supplied.read_bytes()
+    cached.write_bytes(b'corrupt')
+    with pytest.raises(ValueError, match='Checksum mismatch'):
+        builder.prepare(tmp_path)
+    assert lock.read_bytes() == original
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname="different"\n')
+    with pytest.raises(ValueError, match='Configuration changed'):
+        builder.prepare(tmp_path)

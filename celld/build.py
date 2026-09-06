@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import tomllib
 import urllib.request
 import zipfile
@@ -206,6 +207,41 @@ def lock(target: Path):
     return destination
 
 
+
+def prepare(target: Path):
+    """First-run setup or hydration of an existing lock, without changing pins."""
+    root, _, apps = configurations(target)
+    path = root / "celld.lock.json"
+    if not path.exists():
+        return lock(target)
+    locked = json.loads(path.read_text())
+    if locked.get("format") != 1 or locked.get("runtime") != PYODIDE or locked.get("inputs") != inputs_hash(apps):
+        raise ValueError("Configuration changed; run pycelld lock again")
+    cache = root / ".celld-python" / "cache"
+    runtime = core(cache)
+    for file, sha in locked["runtime_files"].items():
+        if digest((runtime / file).read_bytes()) != sha:
+            raise ValueError(f"Runtime checksum mismatch: {file}")
+    for app in apps:
+        supplied = {(app["directory"] / file).name: app["directory"] / file for file in app["wheels"]}
+        for pkg in locked["apps"][app["name"]]["packages"].values():
+            file = cache / "packages" / pkg["sha256"] / pkg["file_name"]
+            if not file.exists():
+                file.parent.mkdir(parents=True, exist_ok=True)
+                if pkg["file_name"] in supplied:
+                    data = supplied[pkg["file_name"]].read_bytes()
+                else:
+                    url = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE}/full/{pkg['file_name']}"
+                    with urllib.request.urlopen(url, timeout=60) as response:
+                        data = response.read()
+                if digest(data) != pkg["sha256"]:
+                    raise ValueError(f"Checksum mismatch for {pkg['name']}")
+                file.write_bytes(data)
+            if digest(file.read_bytes()) != pkg["sha256"]:
+                raise ValueError(f"Checksum mismatch for cached {pkg['name']}")
+    return path
+
+
 def replace_once(source, old, new):
     if source.count(old) != 1:
         raise ValueError(f"Pyodide port no longer matches the pinned runtime: {old[:70]}")
@@ -242,13 +278,14 @@ def baseline_snapshot(runtime, cache, package, runtime_files):
     checksum = path.with_suffix(".sha256")
     if not path.exists() or not checksum.exists() or digest(path.read_bytes()) != checksum.read_text():
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(".tmp")
-        result = subprocess.run(["node", str(generator), str(runtime), str(temporary)],
-                                capture_output=True, text=True, timeout=120)
-        if result.returncode:
-            raise ValueError(f"Python snapshot build failed:\n{result.stderr[-5000:]}")
-        checksum.write_text(digest(temporary.read_bytes()))
-        temporary.replace(path)
+        with tempfile.TemporaryDirectory(prefix="snapshot-", dir=path.parent) as directory:
+            temporary = Path(directory) / "snapshot.gz"
+            result = subprocess.run(["node", str(generator), str(runtime), str(temporary)],
+                                    capture_output=True, text=True, timeout=120)
+            if result.returncode:
+                raise ValueError(f"Python snapshot build failed:\n{result.stderr[-5000:]}")
+            checksum.write_text(digest(temporary.read_bytes()))
+            temporary.replace(path)
     return path.read_bytes()
 
 
