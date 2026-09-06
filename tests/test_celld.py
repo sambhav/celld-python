@@ -361,3 +361,19 @@ def test_wrangler_python_with_and_without_snapshot(tmp_path):
             assert status == 200, body
             assert json.loads(body) == {'result': 'Hello, Wrangler!'}
             assert request(port, '/hello', {'name': []})[0] == 422
+
+
+def test_snapshot_input_is_released_after_real_pyodide_restore(tmp_path):
+    from celld.build import release_snapshot_input
+    runtime = ROOT / "examples/.celld-python/cache/runtime/314.0.6"
+    patched = tmp_path / "runtime"
+    shutil.copytree(runtime, patched)
+    loader = patched / "pyodide.mjs"
+    loader.write_text(release_snapshot_input(loader.read_text()))
+    script = ROOT / "tests/runtime/check-snapshot.mjs"
+    result = subprocess.run(["node", str(script), str(runtime), str(patched)],
+        capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr[-6000:]
+    result = json.loads(result.stdout.strip().splitlines()[-1])
+    assert result["retained_input_bytes"] > 30_000_000
+    assert result["released_input_bytes"] == 0

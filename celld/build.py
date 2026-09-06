@@ -248,9 +248,18 @@ def replace_once(source, old, new):
     return source.replace(old, new)
 
 
+def release_snapshot_input(source: str) -> str:
+    # Pyodide copies the snapshot into WASM memory but retains the input in
+    # API.config. Clear that bootstrap-only reference after prepareSnapshot
+    # takes its local copy. Pin the upstream transformation like the other ports.
+    return replace_once(source,
+        'return t.noInitialRun=!0,t.INITIAL_MEMORY=i.length,i',
+        'return delete e._loadSnapshot,t.noInitialRun=!0,t.INITIAL_MEMORY=i.length,i')
+
+
 def port_runtime(runtime: Path, output: Path):
     # Small, version-pinned adapter. Preserve original upstream files in cache.
-    source = (runtime / "pyodide.mjs").read_text()
+    source = release_snapshot_input((runtime / "pyodide.mjs").read_text())
     source = replace_once(source, 'import("ws")', 'Promise.reject(new Error("Node ws unavailable in celld"))')
     source = replace_once(source, '_(e+"pyodide.asm.wasm")', '{response:true}')
     source = replace_once(source, 'WebAssembly.instantiateStreaming(n,s)',
