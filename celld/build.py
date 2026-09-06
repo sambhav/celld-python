@@ -28,12 +28,15 @@ def digest(data: bytes) -> str:
 
 
 def configurations(target: Path):
-    target = target.resolve()
-    if target.is_dir():
-        target /= "pyproject.toml"
-    data = tomllib.loads(target.read_text())
+    from .wrangler import read_config, resolve_target
+    target = resolve_target(target)
     root = target.parent
-    if target.name == "pyproject.toml":
+    wrangler = read_config(target) if target.suffix in {".json", ".jsonc"} else None
+    data = wrangler or tomllib.loads(target.read_text())
+    if wrangler:
+        name = wrangler["name"]
+        entries = [dict(name=name, path=".", mount="/")]
+    elif target.name == "pyproject.toml":
         name = data["project"]["name"]
         entries = [dict(name=name, path=".", mount="/")]
     else:
@@ -41,13 +44,19 @@ def configurations(target: Path):
     apps = []
     for entry in entries:
         directory = (root / entry["path"]).resolve()
-        project = tomllib.loads((directory / "pyproject.toml").read_text())
+        project_path = directory / "pyproject.toml"
+        project = tomllib.loads(project_path.read_text()) if project_path.exists() else {"project": {}}
+        if not wrangler and not project_path.exists():
+            raise ValueError(f"Missing {project_path}")
         settings = project.get("tool", {}).get("celld", {})
         app = dict(name=entry["name"], mount=entry.get("mount", "/"),
                    entrypoint=settings.get("entrypoint", "app"),
                    source=settings.get("source", "src"),
-                   dependencies=project["project"].get("dependencies", []),
+                   dependencies=project.get("project", {}).get("dependencies", []),
                    wheels=settings.get("wheels", []))
+        if wrangler:
+            entry = Path(wrangler["main"])
+            app.update(source=entry.parent.as_posix(), entrypoint=entry.stem)
         if not re.fullmatch(r"[a-z][a-z0-9_-]{0,62}", app["name"]):
             raise ValueError("App names must be lowercase URL-safe identifiers")
         if not re.fullmatch(r"[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?::[a-zA-Z_]\w*)?", app["entrypoint"]):
@@ -226,7 +235,24 @@ def port_runtime(runtime: Path, output: Path):
     shutil.copyfile(runtime / "pyodide.asm.wasm", output / "pyodide.asm.wasm")
 
 
-def build(target: Path, output: Path | None = None, *, host: Path | None = None):
+def baseline_snapshot(runtime, cache, package, runtime_files):
+    generator = package / "runtime" / "snapshot.mjs"
+    key = digest(generator.read_bytes() + json.dumps(runtime_files, sort_keys=True).encode())
+    path = cache / "snapshots" / (key + ".gz")
+    checksum = path.with_suffix(".sha256")
+    if not path.exists() or not checksum.exists() or digest(path.read_bytes()) != checksum.read_text():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        result = subprocess.run(["node", str(generator), str(runtime), str(temporary)],
+                                capture_output=True, text=True, timeout=120)
+        if result.returncode:
+            raise ValueError(f"Python snapshot build failed:\n{result.stderr[-5000:]}")
+        checksum.write_text(digest(temporary.read_bytes()))
+        temporary.replace(path)
+    return path.read_bytes()
+
+
+def build(target: Path, output: Path | None = None, *, host: Path | None = None, snapshot: bool = True):
     from .codegen import generate
     root, name, apps = configurations(target)
     lock_path = root / "celld.lock.json"
@@ -246,9 +272,12 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
     shutil.copytree(package / "licenses", output / "licenses", dirs_exist_ok=True)
     sdk = {"celld/" + file: (package / file).read_text() for file in ("__init__.py", "app.py", "decorators.py")}
     port_runtime(runtime, output)
-    for file in ("host.js", "stateless.js", "assets.js", "wasm.js"):
+    for file in ("host.js", "stateless.js", "assets.js", "wasm.js", "restore.js"):
         shutil.copyfile(package / "runtime" / file, output / file)
     assets = {"/runtime/python_stdlib.zip": base64.b64encode((runtime / "python_stdlib.zip").read_bytes()).decode()}
+    if snapshot:
+        data = baseline_snapshot(runtime, cache, package, locked["runtime_files"])
+        assets["/runtime/baseline.snapshot.gz"] = base64.b64encode(data).decode()
     manifest = []
     for app in sorted(apps, key=lambda a: len(a["mount"]), reverse=True):
         spec = locked["apps"][app["name"]]
@@ -262,6 +291,9 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
             raise ValueError(f"Missing application source directory: {source}")
         sources = {}
         for path in sorted(source.rglob("*.py")):
+            if any(part in {".celld-python", ".celld", ".venv", "__pycache__", ".git", "node_modules"}
+                   for part in path.relative_to(source).parts) or path.is_relative_to(output):
+                continue
             if path.is_symlink() or not path.resolve().is_relative_to(source):
                 raise ValueError(f"Source symlink not permitted: {path}")
             relative = path.relative_to(source).as_posix()
@@ -289,6 +321,7 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
         (output / (app["name"] + ".schema.json")).write_text(json.dumps(inspected["schema"], indent=2) + "\n")
         generate(inspected["schema"], output / (app["name"].replace("-", "_") + "_client.py"))
     (output / "manifest.js").write_text("export const apps=" + json.dumps(manifest) + ";\nexport const sdk=" + json.dumps(sdk) + ";\n")
+    (output / "snapshot-config.js").write_text("export const useSnapshot=" + json.dumps(snapshot) + ";\n")
     (output / "asset-data.js").write_text("export const assets=" + json.dumps(assets) + ";\n")
     main = "host.js"
     if host is not None:
@@ -301,7 +334,15 @@ def build(target: Path, output: Path | None = None, *, host: Path | None = None)
             "import {resolveContext} from './platform.mjs';\n"
             "export default createHandler({resolveContext});\n")
         main = "entry.js"
-    (output / "wrangler.json").write_text(json.dumps(dict(name=name, main=main, compatibility_date="2026-09-05",
+    from .wrangler import read_config, resolve_target
+    config_path = resolve_target(target)
+    config = read_config(config_path) if config_path.suffix in {".json", ".jsonc"} else {}
+    config.pop("$schema", None)
+    if "compatibility_flags" in config:
+        config["compatibility_flags"] = [f for f in config["compatibility_flags"] if f != "python_workers"]
+    config.update(name=name, main=main,
+        compatibility_date=config.get("compatibility_date", "2026-09-05"),
         durable_objects=dict(bindings=[dict(name="PYTHON_CELLS", class_name="PythonCell")]),
-        migrations=[dict(tag="v1", new_sqlite_classes=["PythonCell"])]), indent=2) + "\n")
+        migrations=[dict(tag="v1", new_sqlite_classes=["PythonCell"])])
+    (output / "wrangler.json").write_text(json.dumps(config, indent=2) + "\n")
     return output

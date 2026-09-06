@@ -418,3 +418,46 @@ The [matched TypeScript comparison](experiments/results/2026-09-05-typescript-th
 measures Zod-validated TypeScript beside Pydantic-validated Python on the same
 runner, including the real HTTP quote workload. [Runtime options](experiments/runtime-options.md)
 explain the tradeoffs between Pyodide snapshots, native CPython pools, and Monty.
+
+### Python entrypoints in Wrangler configuration
+
+A project can use `wrangler.jsonc` with `main: "src/worker.py"` and
+`compatibility_flags: ["python_workers"]`. The Python module still contains just
+`app = App` and decorated functions. See [the hello example](examples/wrangler).
+Declare optional packages in `pyproject.toml`; Pydantic is included automatically.
+
+```sh
+pycelld lock examples/wrangler
+pycelld dev examples/wrangler
+pycelld build examples/wrangler
+```
+
+The celld fork's Python integration also accepts the original configuration in
+`celld dev` and `celld deploy`, invoking the installed `pycelld` builder locally.
+The generated deployment contains the Python runtime, wheels, application code,
+and client schema. Server nodes still require only celld and S3. This supports
+Wrangler's configuration format; it does not replace the Python loader inside
+unmodified Cloudflare Wrangler/workerd. Cloudflare `WorkerEntrypoint` classes and
+Cloudflare service bindings are not yet supported by this adapter. Unsupported
+configuration keys fail explicitly.
+
+### Interpreter snapshots
+
+Builds now prepare a compressed Pyodide interpreter snapshot using the pinned
+runtime's own snapshot API. Cold workers restore Python and selected standard
+library imports, then install their locked wheels and import the current SDK and
+application. NumPy and Pydantic libraries are loaded normally after restoration;
+this avoids relying on workerd's custom dynamic-library relocation patches.
+User module initialization still runs once per interpreter, so code changes and
+request-independent initialization keep their usual behavior. Python's random
+generator is reseeded after restore. No application data or deployment
+credentials enter this baseline snapshot.
+
+The snapshot is cached by runtime checksums and generator source, checked when
+read from cache, and bundled offline. Pyodide also checks the embedded runtime
+build ID during restoration. A corrupt or incompatible snapshot fails rather
+than silently falling back. `pycelld build --no-snapshot` provides an otherwise
+identical build for comparisons. This targets cold startup; warm throughput and
+per-application scale to zero are separate concerns. See
+[the snapshot experiment](experiments/snapshots/README.md) for measurements and
+remaining differences from Cloudflare's application snapshots.

@@ -341,3 +341,23 @@ def test_dev_reloads_python_sources_and_survives_invalid_edits(tmp_path):
                 process.kill()
                 process.wait(timeout=5)
                 pytest.fail("dev supervisor did not stop its child")
+
+
+def test_wrangler_python_with_and_without_snapshot(tmp_path):
+    from celld.build import lock
+    app = tmp_path / "worker"
+    shutil.copytree(ROOT / "examples/wrangler", app)
+    shutil.copytree(ROOT / "examples/.celld-python/cache", app / ".celld-python/cache", dirs_exist_ok=True)
+    lock(app)
+    for snapshot in (False, True):
+        project = build(app, tmp_path / f"bundle-{snapshot}", snapshot=snapshot)
+        config = json.loads((project / 'wrangler.json').read_text())
+        assert config['name'] == 'hello-wrangler'
+        assert 'python_workers' not in config['compatibility_flags']
+        assert config['main'] == 'host.js'
+        publish_local(project, tmp_path / f"publish-{snapshot}.log")
+        with node(project, tmp_path / f"node-{snapshot}.log") as port:
+            status, body, _ = request(port, '/hello', {'name': 'Wrangler'})
+            assert status == 200, body
+            assert json.loads(body) == {'result': 'Hello, Wrangler!'}
+            assert request(port, '/hello', {'name': []})[0] == 422

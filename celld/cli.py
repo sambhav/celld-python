@@ -21,11 +21,12 @@ def main():
     }
     for name, description in descriptions.items():
         command = commands.add_parser(name, help=description, description=description)
-        command.add_argument("project", nargs="?", default=".", type=Path, help="Project directory or fleet TOML (default: current directory)")
+        command.add_argument("project", nargs="?", default=".", type=Path, help="Project directory, Wrangler JSONC, or fleet TOML (default: current directory)")
         if name != "lock":
             command.add_argument("--host", type=Path, help="ES module exporting resolveContext for your platform")
         if name == "build":
             command.add_argument("--out", type=Path)
+            command.add_argument("--no-snapshot", action="store_true", help="Build without the interpreter snapshot for comparison")
         if name == "dev":
             command.add_argument("--port", type=int, default=9876)
             command.add_argument("--no-reload", action="store_true")
@@ -88,7 +89,7 @@ def main():
                 recovery = f" (call ID: {error.call_id})" if error.call_id else ""
                 parser.exit(1, f"pycelld: {error}{recovery}\n")
         else:
-            output = build(args.project, getattr(args, "out", None), host=args.host)
+            output = build(args.project, getattr(args, "out", None), host=args.host, snapshot=not getattr(args, "no_snapshot", False))
             if args.command == "build":
                 print(output)
             else:

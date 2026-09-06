@@ -74,11 +74,13 @@ def publish(project, binary, log_path):
 
 def source_digest(target, host):
     root, _, apps = configurations(target)
-    paths = {target if target.is_file() else target / "pyproject.toml", root / "celld.lock.json"}
+    from .wrangler import resolve_target
+    paths = {resolve_target(target), root / "celld.lock.json"}
     if host:
         paths.add(host)
     for app in apps:
-        paths.add(app["directory"] / "pyproject.toml")
+        if (app["directory"] / "pyproject.toml").exists():
+            paths.add(app["directory"] / "pyproject.toml")
         paths.update((app["directory"] / app["source"]).rglob("*.py"))
     content = hashlib.sha256()
     for path in sorted(paths):

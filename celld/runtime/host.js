@@ -1,6 +1,8 @@
 import { loadPyodide } from './pyodide.mjs';
 import createPyodideModule from './pyodide.asm.mjs';
 import { apps, sdk } from './manifest.js';
+import { useSnapshot } from './snapshot-config.js';
+import { snapshotOptions } from './restore.js';
 import { createStatelessPool, PoolBusy } from './stateless.js';
 
 const MAX_BYTES = 1024 * 1024;
@@ -54,14 +56,14 @@ function match(app,method,path) {
   return null;
 }
 async function boot(app) {
-  const py=await loadPyodide({indexURL:'https://celld-python.invalid/runtime/',
+  const py=await loadPyodide({...await snapshotOptions(useSnapshot),indexURL:'https://celld-python.invalid/runtime/',
     packageBaseUrl:`https://celld-python.invalid/apps/${app.name}/`,lockFileContents:app.lock,
     packages:app.packages,createPyodideModule,enableRunUntilComplete:false,
     stdout:line=>console.log(`[${app.name}] ${line}`),stderr:line=>console.error(`[${app.name}] ${line}`)});
   for(const [name,source] of Object.entries({...sdk,...app.sources})){
     const path='/app/'+name;py.FS.mkdirTree(path.slice(0,path.lastIndexOf('/')));py.FS.writeFile(path,source);
   }
-  py.runPython("import sys; sys.path.insert(0,'/app')");
+  py.runPython("import sys, random; random.seed(); sys.path.insert(0,'/app')");
   const module=py.pyimport('celld');const worker=module.load_worker(app.entrypoint);module.destroy();
   return {py,worker};
 }
