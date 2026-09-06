@@ -23,3 +23,5 @@ NumPy execution, state commit/restart, and the same Wrangler hello without a
 snapshot. Local timings are smoke diagnostics, not performance results.
 GitHub measurements compare identical code and binaries with snapshots enabled
 and disabled, including native readiness separately from the first Python call.
+
+Completed same-runner results: [2026-09-06 snapshots and isolate scaling](../results/2026-09-06-snapshots.md).

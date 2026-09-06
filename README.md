@@ -377,7 +377,7 @@ an optional `token` for a platform that uses Bearer authentication.
   WASM memory is reclaimed. Native isolate retirement controls the shared pool's
   lifetime. This is not a guarantee of zero host RSS or zero machines.
 - Replay-enabled ordinary functions use 16 stable cells per app/scope; stateful
-  functions use one per key. Cold starts have not been optimized with snapshots.
+  functions use one per key. Interpreter snapshots reduce cold initialization; application/package imports still run after restore.
 - Each cell retains up to 4,096 call receipts for 24 hours. At capacity it
   returns a retryable capacity error rather than evicting an unexpired receipt.
 - Replay covers committed state/results, not arbitrary external effects.
@@ -460,5 +460,5 @@ build ID during restoration. A corrupt or incompatible snapshot fails rather
 than silently falling back. `pycelld build --no-snapshot` provides an otherwise
 identical build for comparisons. This targets cold startup; warm throughput and
 per-application scale to zero are separate concerns. See
-[the snapshot experiment](experiments/snapshots/README.md) for measurements and
+[the snapshot benchmark results](experiments/results/2026-09-06-snapshots.md) for measurements and
 remaining differences from Cloudflare's application snapshots.
